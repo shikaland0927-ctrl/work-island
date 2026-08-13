@@ -1,6 +1,6 @@
 # Work Island — Critical Lessons and Prevention Rules
 
-Last consolidated: 2026-08-13
+Last consolidated: 2026-08-14
 
 This is not a chronological diary. It is ranked by potential damage and recurrence. Rules marked **STOP** must be resolved before proceeding. Repeated failure families are intentionally emphasized because they caused several regressions during this project.
 
@@ -67,6 +67,24 @@ Required verification sequence:
 6. Launch that exact path and verify the new PID's executable path.
 7. Compare staging and installed executable/resource hashes.
 8. Use full Quit → cold launch cycles; reopening a resident process is not equivalent.
+
+### Optical control ranges need rendered endpoint checks
+
+The first Notch Glass mapping passed numeric unit tests, but its maximum
+Refraction used only a thin 0.16-opacity edge and could become even less visible
+when Bezel Depth was low. The user correctly perceived almost no useful change.
+Increasing only that edge then made the perimeter look neon while the glass face
+stayed comparatively unchanged.
+
+Prevention:
+
+- Compare minimum, standard, the user's exact mixed endpoint, and all-maximum in
+  a real expanded notch over detailed background content.
+- Keep the standard mapping exact when it represents an accepted appearance.
+- Put most high-end Frost/Refraction change into a bounded whole-surface wash;
+  keep the chromatic rim subordinate.
+- Unit-test endpoints and default invariants, but never claim those numeric tests
+  prove perceptible or visually balanced output.
 
 Do not trust app appearance, bundle name, or `open -a` alone when several copies may exist.
 

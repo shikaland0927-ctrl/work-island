@@ -40,6 +40,9 @@ struct SettingsPageView: View {
 }
 
 private struct SettingsContent: View {
+    @EnvironmentObject private var preferences: AppPreferences
+    @State private var isRequestingNotchGlassPreview = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             SettingsCard(title: "General", systemImage: "gearshape") {
@@ -60,6 +63,20 @@ private struct SettingsContent: View {
             ) {
                 DashboardSettingsView()
             }
+        }
+        .onAppear {
+            guard !isRequestingNotchGlassPreview else {
+                return
+            }
+            isRequestingNotchGlassPreview = true
+            preferences.beginNotchGlassPreview()
+        }
+        .onDisappear {
+            guard isRequestingNotchGlassPreview else {
+                return
+            }
+            isRequestingNotchGlassPreview = false
+            preferences.endNotchGlassPreview()
         }
     }
 }

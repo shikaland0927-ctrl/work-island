@@ -159,6 +159,54 @@ final class IslandHoverPolicyTests: XCTestCase {
         XCTAssertNil(presentation.completionNotice)
     }
 
+    func testNotchGlassPreviewStaysOpenUntilPointerVisitsAndLeaves() {
+        let presentation = IslandPresentationState()
+
+        presentation.beginNotchGlassPreview()
+
+        XCTAssertTrue(presentation.isExpanded)
+        XCTAssertTrue(presentation.isNotchGlassPreviewPinned)
+        XCTAssertFalse(presentation.hasNotchGlassPreviewBeenTouched)
+        XCTAssertFalse(
+            presentation.dismissNotchGlassPreviewAfterPointerExit()
+        )
+
+        presentation.noteNotchGlassPreviewPointerEntered()
+        XCTAssertTrue(presentation.hasNotchGlassPreviewBeenTouched)
+        XCTAssertTrue(
+            presentation.dismissNotchGlassPreviewAfterPointerExit()
+        )
+        XCTAssertFalse(presentation.isExpanded)
+        XCTAssertFalse(presentation.isNotchGlassPreviewPinned)
+    }
+
+    func testCompletionRevealOutlivesNotchGlassPreview() {
+        let presentation = IslandPresentationState()
+        let notice = TimedActivityCompletion(
+            kind: .timer,
+            activityTitle: "Writing",
+            completedAt: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+
+        presentation.beginNotchGlassPreview()
+        presentation.presentCompletion(notice)
+        presentation.endNotchGlassPreview()
+
+        XCTAssertTrue(presentation.isExpanded)
+        XCTAssertTrue(presentation.isCompletionRevealPinned)
+        XCTAssertFalse(presentation.isNotchGlassPreviewPinned)
+    }
+
+    func testEndingAnInactivePreviewDoesNotCollapseNormalExpansion() {
+        let presentation = IslandPresentationState()
+        presentation.isExpanded = true
+
+        presentation.endNotchGlassPreview()
+
+        XCTAssertTrue(presentation.isExpanded)
+        XCTAssertFalse(presentation.isNotchGlassPreviewPinned)
+    }
+
     func testCompletionRevealModesUseTheRequestedLifetime() {
         XCTAssertEqual(
             CompletionRevealMode.allCases,
@@ -384,12 +432,27 @@ final class IslandHoverPolicyTests: XCTestCase {
             accuracy: 0.000_001
         )
         XCTAssertEqual(
+            IslandLiquidGlassStyle.frostSheenOpacity(for: configuration),
+            0,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
             IslandLiquidGlassStyle.bezelLineWidth(for: configuration),
             1,
             accuracy: 0.000_001
         )
         XCTAssertEqual(
             IslandLiquidGlassStyle.chromaticEdgeOpacity(for: configuration),
+            0,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.chromaticEdgeLineWidth(for: configuration),
+            0,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.refractionWashOpacity(for: configuration),
             0,
             accuracy: 0.000_001
         )
@@ -418,6 +481,10 @@ final class IslandHoverPolicyTests: XCTestCase {
             IslandLiquidGlassStyle.shellBlackOpacity(for: minimum),
             IslandLiquidGlassStyle.shellBlackOpacity(for: maximum)
         )
+        XCTAssertGreaterThan(
+            IslandLiquidGlassStyle.frostSheenOpacity(for: maximum),
+            0.10
+        )
         XCTAssertTrue(
             IslandLiquidGlassStyle.usesClearNativeGlass(for: minimum)
         )
@@ -434,7 +501,15 @@ final class IslandHoverPolicyTests: XCTestCase {
         )
         XCTAssertGreaterThan(
             IslandLiquidGlassStyle.chromaticEdgeOpacity(for: maximum),
-            0
+            0.25
+        )
+        XCTAssertGreaterThan(
+            IslandLiquidGlassStyle.chromaticEdgeLineWidth(for: maximum),
+            2
+        )
+        XCTAssertGreaterThan(
+            IslandLiquidGlassStyle.refractionWashOpacity(for: maximum),
+            0.20
         )
         XCTAssertGreaterThan(
             IslandLiquidGlassStyle.bezelLineWidth(for: maximum),

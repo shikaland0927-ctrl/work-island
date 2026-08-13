@@ -20,6 +20,7 @@ final class IslandPanelController: IslandPanelPresenting {
     private var timedCompletionTimer: Timer?
     private var completionRevealTimer: Timer?
     private var menuTrackingDepth = 0
+    private var isNotchGlassPreviewDismissedUntilRequestEnds = false
 
     init(
         store: WorkTimerStore,
@@ -153,9 +154,29 @@ final class IslandPanelController: IslandPanelPresenting {
             .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
+                guard self?.presentation.isNotchGlassPreviewPinned != true else {
+                    return
+                }
                 self?.presentation.isExpanded = false
             }
             .store(in: &cancellables)
+
+        Publishers.CombineLatest(
+            preferences.$notchGlassPreviewRequestCount
+                .map { $0 > 0 },
+            preferences.$appearance
+        )
+        .removeDuplicates { previous, current in
+            previous.0 == current.0 && previous.1 == current.1
+        }
+        .receive(on: RunLoop.main)
+        .sink { [weak self] isRequested, appearance in
+            self?.updateNotchGlassPreview(
+                isRequested: isRequested,
+                appearance: appearance
+            )
+        }
+        .store(in: &cancellables)
 
         presentation.$interactionDepth
             .removeDuplicates()
@@ -227,6 +248,10 @@ final class IslandPanelController: IslandPanelPresenting {
 
     private func handleHover(_ isHovering: Bool) {
         if isHovering {
+            if presentation.isNotchGlassPreviewPinned {
+                presentation.noteNotchGlassPreviewPointerEntered()
+                return
+            }
             guard preferences.notchOpenMode == .hover else {
                 return
             }
@@ -237,7 +262,32 @@ final class IslandPanelController: IslandPanelPresenting {
             return
         }
 
+        if presentation.dismissNotchGlassPreviewAfterPointerExit() {
+            isNotchGlassPreviewDismissedUntilRequestEnds = true
+            return
+        }
+
         collapseIfPointerIsOutside()
+    }
+
+    private func updateNotchGlassPreview(
+        isRequested: Bool,
+        appearance: WorkIslandAppearance
+    ) {
+        guard isRequested else {
+            isNotchGlassPreviewDismissedUntilRequestEnds = false
+            presentation.endNotchGlassPreview()
+            return
+        }
+
+        guard appearance == .liquidGlass,
+              !isNotchGlassPreviewDismissedUntilRequestEnds else {
+            presentation.endNotchGlassPreview()
+            return
+        }
+
+        presentation.beginNotchGlassPreview()
+        panel.orderFrontRegardless()
     }
 
     private func updatePointerVerification(isExpanded: Bool) {
@@ -289,6 +339,7 @@ final class IslandPanelController: IslandPanelPresenting {
             isInteractionActive: menuTrackingDepth > 0
                 || presentation.isInteractionActive
                 || presentation.isCompletionRevealPinned
+                || presentation.isNotchGlassPreviewPinned
         ) else {
             return
         }
