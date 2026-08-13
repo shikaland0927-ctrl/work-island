@@ -341,7 +341,7 @@ private struct NotchGlassSettingsView: View {
 
             sliderRow(
                 title: "Refraction",
-                detail: "Strengthen the colored edge light.",
+                detail: "Strengthen the even edge lens.",
                 systemImage: "sparkles",
                 value: preferences.notchGlassConfiguration.refraction,
                 range: NotchGlassConfiguration.refractionRange,

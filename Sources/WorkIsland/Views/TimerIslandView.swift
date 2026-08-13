@@ -141,19 +141,6 @@ struct IslandAppearancePolicy {
     }
 }
 
-enum IslandNativeGlassVariant: Equatable {
-    case identity
-    case clear
-    case regular
-}
-
-enum IslandAdditionalBlurMaterial: Equatable {
-    case none
-    case ultraThin
-    case thin
-    case regular
-}
-
 struct IslandLiquidGlassStyle {
     static let shellBlackOpacity = 0.12
     static let shellTintOpacity = 0.14
@@ -207,114 +194,45 @@ struct IslandLiquidGlassStyle {
     }
 
     static func shellTintOpacity(
-        for configuration: NotchGlassConfiguration
+        for _: NotchGlassConfiguration
     ) -> Double {
-        refractionOpacity(
-            configuration,
-            standardOpacity: shellTintOpacity,
-            maximumOpacity: 0.36
-        )
+        shellTintOpacity
     }
 
     static func shellBorderTintOpacity(
-        for configuration: NotchGlassConfiguration
+        for _: NotchGlassConfiguration
     ) -> Double {
-        refractionOpacity(
-            configuration,
-            standardOpacity: shellBorderTintOpacity,
-            maximumOpacity: 0.72
-        )
+        shellBorderTintOpacity
     }
 
     static func shellReflectionTintOpacity(
+        for _: NotchGlassConfiguration
+    ) -> Double {
+        shellReflectionTintOpacity
+    }
+
+    static func nativeGlassOpacity(
         for configuration: NotchGlassConfiguration
     ) -> Double {
-        refractionOpacity(
-            configuration,
-            standardOpacity: shellReflectionTintOpacity,
-            maximumOpacity: 0.38
-        )
+        pow(blurProgress(for: configuration), 1.55)
     }
 
     static func additionalBlurOpacity(
         for configuration: NotchGlassConfiguration
     ) -> Double {
-        let extraBlur = max(
-            0,
-            configuration.blur - NotchGlassConfiguration.standard.blur
-        )
-        let availableRange = max(
-            1,
-            NotchGlassConfiguration.blurRange.upperBound
-                - NotchGlassConfiguration.standard.blur
-        )
-        return Double(extraBlur) / Double(availableRange)
+        pow(blurProgress(for: configuration), 2.4)
     }
 
     static func reflectionBlurRadius(
         for configuration: NotchGlassConfiguration
     ) -> CGFloat {
-        CGFloat(
-            max(
-                0,
-                configuration.blur - NotchGlassConfiguration.standard.blur
-            )
-        ) * 0.28
-    }
-
-    static func nativeGlassVariant(
-        for configuration: NotchGlassConfiguration
-    ) -> IslandNativeGlassVariant {
-        switch configuration.blur {
-        case 0:
-            return .identity
-        case 1:
-            return .clear
-        default:
-            return .regular
-        }
-    }
-
-    @available(macOS 26.0, *)
-    static func nativeGlass(
-        for configuration: NotchGlassConfiguration
-    ) -> Glass {
-        switch nativeGlassVariant(for: configuration) {
-        case .identity:
-            return .identity
-        case .clear:
-            return .clear
-        case .regular:
-            return .regular
-        }
-    }
-
-    static func additionalBlurMaterial(
-        for configuration: NotchGlassConfiguration
-    ) -> IslandAdditionalBlurMaterial {
-        switch configuration.blur {
-        case ...NotchGlassConfiguration.standard.blur:
-            return .none
-        case 3...5:
-            return .ultraThin
-        case 6...9:
-            return .thin
-        default:
-            return .regular
-        }
+        CGFloat(blurProgress(for: configuration) * 2.8)
     }
 
     static func fallbackBaseMaterialOpacity(
         for configuration: NotchGlassConfiguration
     ) -> Double {
-        switch configuration.blur {
-        case 0:
-            return 0
-        case 1:
-            return 0.45
-        default:
-            return 1
-        }
+        nativeGlassOpacity(for: configuration)
     }
 
     static func bezelLineWidth(
@@ -365,78 +283,50 @@ struct IslandLiquidGlassStyle {
         return Double(extraDepth) / Double(availableRange) * 0.38
     }
 
-    static func chromaticEdgeOpacity(
+    static func refractionEdgeOpacity(
         for configuration: NotchGlassConfiguration
     ) -> Double {
-        let extraRefraction = max(
-            0,
-            configuration.refraction
-                - NotchGlassConfiguration.standard.refraction
-        )
-        let availableRange = max(
-            1,
-            NotchGlassConfiguration.refractionRange.upperBound
-                - NotchGlassConfiguration.standard.refraction
-        )
-        return Double(extraRefraction) / Double(availableRange) * 0.30
+        refractionProgress(for: configuration) * 0.22
     }
 
-    static func refractionWashOpacity(
+    static func refractionFaceOpacity(
         for configuration: NotchGlassConfiguration
     ) -> Double {
-        let extraRefraction = max(
-            0,
-            configuration.refraction
-                - NotchGlassConfiguration.standard.refraction
-        )
-        let availableRange = max(
-            1,
-            NotchGlassConfiguration.refractionRange.upperBound
-                - NotchGlassConfiguration.standard.refraction
-        )
-        return Double(extraRefraction) / Double(availableRange) * 0.22
+        refractionProgress(for: configuration) * 0.065
     }
 
-    static func chromaticEdgeLineWidth(
+    static func refractionBandWidth(
         for configuration: NotchGlassConfiguration
     ) -> CGFloat {
-        let opacity = chromaticEdgeOpacity(for: configuration)
-        guard opacity > 0 else {
+        let progress = refractionProgress(for: configuration)
+        guard progress > 0 else {
             return 0
         }
-        return CGFloat(1.2 + opacity / 0.30)
+        return CGFloat(4 + progress * 12)
     }
 
     static func fallbackBlackOpacity(
         for configuration: NotchGlassConfiguration
     ) -> Double {
-        let frostOpacity = shellBlackOpacity(for: configuration)
-        switch configuration.blur {
-        case 0:
-            return frostOpacity
-        case 1:
-            return min(0.62, 0.10 + frostOpacity)
-        default:
-            return min(0.62, 0.28 + frostOpacity)
-        }
+        min(
+            0.62,
+            shellBlackOpacity(for: configuration)
+                + nativeGlassOpacity(for: configuration) * 0.28
+        )
     }
 
-    private static func refractionOpacity(
-        _ configuration: NotchGlassConfiguration,
-        standardOpacity: Double,
-        maximumOpacity: Double
+    private static func refractionProgress(
+        for configuration: NotchGlassConfiguration
     ) -> Double {
-        let standard = NotchGlassConfiguration.standard.refraction
-        guard configuration.refraction > standard else {
-            return standardOpacity * Double(configuration.refraction)
-                / Double(standard)
-        }
+        Double(configuration.refraction)
+            / Double(NotchGlassConfiguration.refractionRange.upperBound)
+    }
 
-        let ratio = Double(configuration.refraction - standard)
-            / Double(
-                NotchGlassConfiguration.refractionRange.upperBound - standard
-            )
-        return standardOpacity + ratio * (maximumOpacity - standardOpacity)
+    private static func blurProgress(
+        for configuration: NotchGlassConfiguration
+    ) -> Double {
+        Double(configuration.blur)
+            / Double(NotchGlassConfiguration.blurRange.upperBound)
     }
 }
 
@@ -466,22 +356,11 @@ private struct IslandNotchBackground: View {
                     .background {
                         additionalBlurLayer(shape: shape)
                     }
-                    .glassEffect(
-                        IslandLiquidGlassStyle.nativeGlass(
-                            for: configuration
-                        ).tint(
-                            IslandLiquidGlassStyle.selectedActivityTint.opacity(
-                                IslandLiquidGlassStyle.shellTintOpacity(
-                                    for: configuration
-                                )
-                            )
-                        ),
-                        in: shape
-                    )
-                    .overlay { liquidRefractionWash(shape: shape) }
+                    .background { nativeGlassLayer(shape: shape) }
+                    .overlay { liquidRefractionFace(shape: shape) }
                     .overlay { liquidFrostSheen(shape: shape) }
                     .overlay { liquidReflection(shape: shape) }
-                    .overlay { liquidChromaticEdge(shape: shape) }
+                    .overlay { liquidRefractionLens(shape: shape) }
                     .overlay { liquidBezelGlow(shape: shape) }
                     .overlay { liquidBorder(shape: shape) }
             } else {
@@ -502,10 +381,10 @@ private struct IslandNotchBackground: View {
                             )
                         )
                     }
-                    .overlay { liquidRefractionWash(shape: shape) }
+                    .overlay { liquidRefractionFace(shape: shape) }
                     .overlay { liquidFrostSheen(shape: shape) }
                     .overlay { liquidReflection(shape: shape) }
-                    .overlay { liquidChromaticEdge(shape: shape) }
+                    .overlay { liquidRefractionLens(shape: shape) }
                     .overlay { liquidBezelGlow(shape: shape) }
                     .overlay { liquidBorder(shape: shape) }
             }
@@ -534,8 +413,8 @@ private struct IslandNotchBackground: View {
                         )
                     )
                 ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                startPoint: .top,
+                endPoint: .bottom
             ),
             lineWidth: IslandLiquidGlassStyle.bezelLineWidth(
                 for: configuration
@@ -544,25 +423,15 @@ private struct IslandNotchBackground: View {
     }
 
     @ViewBuilder
-    private func liquidRefractionWash(shape: NotchShape) -> some View {
-        let opacity = IslandLiquidGlassStyle.refractionWashOpacity(
+    private func liquidRefractionFace(shape: NotchShape) -> some View {
+        let opacity = IslandLiquidGlassStyle.refractionFaceOpacity(
             for: configuration
         )
         if opacity > 0 {
             shape
                 .fill(
-                    LinearGradient(
-                        colors: [
-                            IslandLiquidGlassStyle.selectedActivityTint.opacity(
-                                opacity * 0.88
-                            ),
-                            IslandLiquidGlassStyle.selectedActivityTint.opacity(
-                                opacity
-                            ),
-                            Color.cyan.opacity(opacity * 0.30)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
+                    IslandLiquidGlassStyle.selectedActivityTint.opacity(
+                        opacity
                     )
                 )
                 .blendMode(.screen)
@@ -609,8 +478,8 @@ private struct IslandNotchBackground: View {
                             location: 1
                         )
                     ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
             )
             .blendMode(.screen)
@@ -626,24 +495,34 @@ private struct IslandNotchBackground: View {
     }
 
     @ViewBuilder
+    @available(macOS 26.0, *)
+    private func nativeGlassLayer(shape: NotchShape) -> some View {
+        let opacity = IslandLiquidGlassStyle.nativeGlassOpacity(
+            for: configuration
+        )
+        if opacity > 0 {
+            shape
+                .fill(Color.clear)
+                .glassEffect(
+                    Glass.regular.tint(
+                        IslandLiquidGlassStyle.selectedActivityTint.opacity(
+                            IslandLiquidGlassStyle.shellTintOpacity(
+                                for: configuration
+                            )
+                        )
+                    ),
+                    in: shape
+                )
+                .opacity(opacity)
+        }
+    }
+
+    @ViewBuilder
     private func additionalBlurLayer(shape: NotchShape) -> some View {
         let opacity = IslandLiquidGlassStyle.additionalBlurOpacity(
             for: configuration
         )
-        switch IslandLiquidGlassStyle.additionalBlurMaterial(
-            for: configuration
-        ) {
-        case .none:
-            EmptyView()
-        case .ultraThin:
-            shape
-                .fill(.ultraThinMaterial)
-                .opacity(opacity)
-        case .thin:
-            shape
-                .fill(.thinMaterial)
-                .opacity(opacity)
-        case .regular:
+        if opacity > 0 {
             shape
                 .fill(.regularMaterial)
                 .opacity(opacity)
@@ -663,34 +542,36 @@ private struct IslandNotchBackground: View {
     }
 
     @ViewBuilder
-    private func liquidChromaticEdge(shape: NotchShape) -> some View {
-        let opacity = IslandLiquidGlassStyle.chromaticEdgeOpacity(
+    private func liquidRefractionLens(shape: NotchShape) -> some View {
+        let opacity = IslandLiquidGlassStyle.refractionEdgeOpacity(
             for: configuration
         )
         if opacity > 0 {
-            shape
-                .stroke(
-                    AngularGradient(
-                        colors: [
-                            IslandLiquidGlassStyle.primaryActionTint.opacity(
-                                opacity * 0.65
-                            ),
-                            Color.cyan.opacity(opacity),
-                            IslandLiquidGlassStyle.selectedActivityTint.opacity(
-                                opacity
-                            ),
-                            .clear,
-                            IslandLiquidGlassStyle.primaryActionTint.opacity(
-                                opacity * 0.65
-                            )
-                        ],
-                        center: .center
-                    ),
-                    lineWidth: IslandLiquidGlassStyle.chromaticEdgeLineWidth(
-                        for: configuration
+            let width = IslandLiquidGlassStyle.refractionBandWidth(
+                for: configuration
+            )
+            ZStack {
+                shape
+                    .stroke(
+                        Color.cyan.opacity(opacity * 0.36),
+                        lineWidth: width + 4
                     )
-                )
-                .blur(radius: 0.28)
+                    .blur(radius: 2.2)
+                shape
+                    .stroke(
+                        IslandLiquidGlassStyle.selectedActivityTint.opacity(
+                            opacity
+                        ),
+                        lineWidth: width
+                    )
+                    .blur(radius: 0.7)
+                shape
+                    .stroke(
+                        Color.white.opacity(opacity * 0.32),
+                        lineWidth: 1
+                    )
+            }
+                .mask(shape)
                 .blendMode(.screen)
         }
     }

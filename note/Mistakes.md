@@ -83,16 +83,36 @@ the translucent fill and refraction remain. Mapping that endpoint to SwiftUI
 `Glass.clear` still retained native backdrop processing and therefore did not
 look remotely close to the reference's deliberately transparent zero endpoint.
 
+A later Refraction approximation coupled the slider to directional tint,
+reflection, and an angular chromatic gradient. With Frost and Blur at zero this
+looked like a diagonal color wash rather than refraction. The reference instead
+changes the scale of a centered SVG displacement lens, so the visible change is
+substantially symmetric around the perimeter. The SwiftUI approximation now
+keeps base tint/reflection constants independent of Refraction and changes only
+a uniform face tint plus identical full-perimeter lens strokes.
+
+The first Blur correction still switched between identity, clear, regular, and
+several Material types at integer boundaries. Even when each mapping was
+reasonable in isolation, `0` to `1` visibly jumped because the compositor path
+changed. The final mapping keeps one native glass type and one Material type,
+then fades both continuously with a low-end-weighted curve. Blur `0 / 1 / 2 /
+12` now maps native glass to approximately `0% / 2.1% / 6.2% / 100%`.
+
 Prevention:
 
 - Compare minimum, standard, the user's exact mixed endpoint, and all-maximum in
   a real expanded notch over detailed background content.
+- Render adjacent low values such as `0 / 1 / 2`; min/default/max alone cannot
+  reveal a perceptual step at an integer boundary.
 - Keep the standard mapping exact when it represents an accepted appearance.
 - Inspect the reference's live generated style and script before translating a
-  named control. For a true Blur `0`, remove the native glass/material with
-  `Glass.identity` rather than treating `Glass.clear` as zero blur.
-- Put most high-end Frost/Refraction change into a bounded whole-surface wash;
-  keep the chromatic rim subordinate.
+  named control. For a true Blur `0`, remove the native glass/material layers
+  rather than treating `Glass.clear` as zero blur.
+- Do not translate Refraction into directional color. When the native API does
+  not expose displacement scale, approximate it only with symmetric lens
+  components and keep unrelated base tint/reflection constants invariant.
+- Never switch native glass or Material types between adjacent slider integers.
+  Keep one rendering path and interpolate opacity/radius across the full range.
 - Unit-test endpoints and default invariants, but never claim those numeric tests
   prove perceptible or visually balanced output.
 

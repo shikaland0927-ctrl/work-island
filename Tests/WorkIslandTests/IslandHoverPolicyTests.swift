@@ -401,7 +401,7 @@ final class IslandHoverPolicyTests: XCTestCase {
         )
     }
 
-    func testStandardNotchGlassParametersPreserveTheCurrentShell() {
+    func testStandardNotchGlassParametersKeepTheBaseOpticalConstants() {
         let configuration = NotchGlassConfiguration.standard
 
         XCTAssertEqual(
@@ -428,24 +428,21 @@ final class IslandHoverPolicyTests: XCTestCase {
         )
         XCTAssertEqual(
             IslandLiquidGlassStyle.additionalBlurOpacity(for: configuration),
-            0,
+            pow(2.0 / 12.0, 2.4),
             accuracy: 0.000_001
         )
         XCTAssertEqual(
-            IslandLiquidGlassStyle.nativeGlassVariant(for: configuration),
-            .regular
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.additionalBlurMaterial(
+            IslandLiquidGlassStyle.nativeGlassOpacity(
                 for: configuration
             ),
-            .none
+            pow(2.0 / 12.0, 1.55),
+            accuracy: 0.000_001
         )
         XCTAssertEqual(
             IslandLiquidGlassStyle.fallbackBaseMaterialOpacity(
                 for: configuration
             ),
-            1,
+            pow(2.0 / 12.0, 1.55),
             accuracy: 0.000_001
         )
         XCTAssertEqual(
@@ -459,18 +456,18 @@ final class IslandHoverPolicyTests: XCTestCase {
             accuracy: 0.000_001
         )
         XCTAssertEqual(
-            IslandLiquidGlassStyle.chromaticEdgeOpacity(for: configuration),
-            0,
+            IslandLiquidGlassStyle.refractionEdgeOpacity(for: configuration),
+            0.1232,
             accuracy: 0.000_001
         )
         XCTAssertEqual(
-            IslandLiquidGlassStyle.chromaticEdgeLineWidth(for: configuration),
-            0,
+            IslandLiquidGlassStyle.refractionBandWidth(for: configuration),
+            10.72,
             accuracy: 0.000_001
         )
         XCTAssertEqual(
-            IslandLiquidGlassStyle.refractionWashOpacity(for: configuration),
-            0,
+            IslandLiquidGlassStyle.refractionFaceOpacity(for: configuration),
+            0.0364,
             accuracy: 0.000_001
         )
         XCTAssertEqual(
@@ -480,7 +477,141 @@ final class IslandHoverPolicyTests: XCTestCase {
         )
     }
 
-    func testNotchGlassParametersChangeOnlyTheirOpticalDimensions() {
+    func testBlurUsesOneContinuousNativeGlassRamp() {
+        let minimum = NotchGlassConfiguration(
+            frost: 0,
+            blur: 0,
+            refraction: 0,
+            bezelDepth: 2
+        )
+        let one = NotchGlassConfiguration(
+            frost: 0,
+            blur: 1,
+            refraction: 0,
+            bezelDepth: 2
+        )
+        let standard = NotchGlassConfiguration(
+            frost: 0,
+            blur: 2,
+            refraction: 0,
+            bezelDepth: 2
+        )
+        let maximum = NotchGlassConfiguration(
+            frost: 0,
+            blur: 12,
+            refraction: 0,
+            bezelDepth: 2
+        )
+
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.nativeGlassOpacity(for: minimum),
+            0,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.nativeGlassOpacity(for: one),
+            pow(1.0 / 12.0, 1.55),
+            accuracy: 0.000_001
+        )
+        XCTAssertLessThan(
+            IslandLiquidGlassStyle.nativeGlassOpacity(for: one),
+            0.025
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.nativeGlassOpacity(for: standard),
+            pow(2.0 / 12.0, 1.55),
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.nativeGlassOpacity(for: maximum),
+            1,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.additionalBlurOpacity(for: maximum),
+            1,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.fallbackBaseMaterialOpacity(for: minimum),
+            0,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.fallbackBaseMaterialOpacity(for: one),
+            pow(1.0 / 12.0, 1.55),
+            accuracy: 0.000_001
+        )
+        XCTAssertLessThan(
+            IslandLiquidGlassStyle.nativeGlassOpacity(for: one)
+                - IslandLiquidGlassStyle.nativeGlassOpacity(for: minimum),
+            IslandLiquidGlassStyle.nativeGlassOpacity(for: standard)
+                - IslandLiquidGlassStyle.nativeGlassOpacity(for: one)
+        )
+    }
+
+    func testRefractionChangesOnlySymmetricLensComponents() {
+        let minimum = NotchGlassConfiguration(
+            frost: 0,
+            blur: 0,
+            refraction: 0,
+            bezelDepth: 2
+        )
+        let maximum = NotchGlassConfiguration(
+            frost: 0,
+            blur: 0,
+            refraction: 250,
+            bezelDepth: 2
+        )
+
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.shellBlackOpacity(for: minimum),
+            IslandLiquidGlassStyle.shellBlackOpacity(for: maximum),
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.nativeGlassOpacity(for: minimum),
+            IslandLiquidGlassStyle.nativeGlassOpacity(for: maximum),
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.shellTintOpacity(for: maximum),
+            IslandLiquidGlassStyle.shellTintOpacity(for: minimum),
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.shellBorderTintOpacity(for: maximum),
+            IslandLiquidGlassStyle.shellBorderTintOpacity(for: minimum),
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.shellReflectionTintOpacity(for: maximum),
+            IslandLiquidGlassStyle.shellReflectionTintOpacity(for: minimum),
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.refractionEdgeOpacity(for: minimum),
+            0,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.refractionEdgeOpacity(for: maximum),
+            0.22,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.refractionFaceOpacity(for: maximum),
+            0.065,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.refractionBandWidth(for: maximum),
+            16,
+            accuracy: 0.000_001
+        )
+    }
+
+    func testFrostAndBezelRetainTheirEndpointMappings() {
         let minimum = NotchGlassConfiguration(
             frost: 0,
             blur: 0,
@@ -494,49 +625,8 @@ final class IslandHoverPolicyTests: XCTestCase {
             bezelDepth: 40
         )
 
-        XCTAssertLessThan(
+        XCTAssertEqual(
             IslandLiquidGlassStyle.shellBlackOpacity(for: minimum),
-            IslandLiquidGlassStyle.shellBlackOpacity(for: maximum)
-        )
-        XCTAssertGreaterThan(
-            IslandLiquidGlassStyle.frostSheenOpacity(for: maximum),
-            0.10
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.nativeGlassVariant(for: minimum),
-            .identity
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.nativeGlassVariant(
-                for: NotchGlassConfiguration(
-                    frost: 12,
-                    blur: 1,
-                    refraction: 140,
-                    bezelDepth: 14
-                )
-            ),
-            .clear
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.nativeGlassVariant(for: maximum),
-            .regular
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.additionalBlurOpacity(for: maximum),
-            1,
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.additionalBlurMaterial(for: maximum),
-            .regular
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.fallbackBaseMaterialOpacity(for: minimum),
-            0,
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.fallbackBlackOpacity(for: minimum),
             0,
             accuracy: 0.000_001
         )
@@ -546,20 +636,8 @@ final class IslandHoverPolicyTests: XCTestCase {
             accuracy: 0.000_001
         )
         XCTAssertGreaterThan(
-            IslandLiquidGlassStyle.shellTintOpacity(for: maximum),
-            IslandLiquidGlassStyle.shellTintOpacity(for: minimum)
-        )
-        XCTAssertGreaterThan(
-            IslandLiquidGlassStyle.chromaticEdgeOpacity(for: maximum),
-            0.25
-        )
-        XCTAssertGreaterThan(
-            IslandLiquidGlassStyle.chromaticEdgeLineWidth(for: maximum),
-            2
-        )
-        XCTAssertGreaterThan(
-            IslandLiquidGlassStyle.refractionWashOpacity(for: maximum),
-            0.20
+            IslandLiquidGlassStyle.frostSheenOpacity(for: maximum),
+            0.10
         )
         XCTAssertGreaterThan(
             IslandLiquidGlassStyle.bezelLineWidth(for: maximum),
