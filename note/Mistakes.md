@@ -76,15 +76,42 @@ when Bezel Depth was low. The user correctly perceived almost no useful change.
 Increasing only that edge then made the perimeter look neon while the glass face
 stayed comparatively unchanged.
 
+The Blur label was also mapped from an assumption instead of the rendered
+reference. The generator's Chromium path applies `blur(value / 2)`, then its SVG
+lens, then `blur(value)`; at Blur `0`, both blur stages are literally `0px` while
+the translucent fill and refraction remain. Mapping that endpoint to SwiftUI
+`Glass.clear` still retained native backdrop processing and therefore did not
+look remotely close to the reference's deliberately transparent zero endpoint.
+
 Prevention:
 
 - Compare minimum, standard, the user's exact mixed endpoint, and all-maximum in
   a real expanded notch over detailed background content.
 - Keep the standard mapping exact when it represents an accepted appearance.
+- Inspect the reference's live generated style and script before translating a
+  named control. For a true Blur `0`, remove the native glass/material with
+  `Glass.identity` rather than treating `Glass.clear` as zero blur.
 - Put most high-end Frost/Refraction change into a bounded whole-surface wash;
   keep the chromatic rim subordinate.
 - Unit-test endpoints and default invariants, but never claim those numeric tests
   prove perceptible or visually balanced output.
+
+### Repeated adjustments must not accumulate preview ownership
+
+The first slider-triggered preview reused a balanced request counter. Every
+slider movement incremented it, but leaving Settings decremented it only once,
+so a preview could remain requested after the owner disappeared. SwiftUI view
+recomposition makes this especially easy to miss even when a simple open/close
+test passes.
+
+Prevention:
+
+- Model a single Settings owner's preview as an idempotent requested Boolean,
+  not a reference count.
+- Carry a separate monotonically changing revision when every slider movement
+  must retrigger a preview that pointer exit previously dismissed.
+- Test several adjustments followed by one view disappearance, then verify both
+  that the request is fully off and that a later adjustment can restart it.
 
 Do not trust app appearance, bundle name, or `open -a` alone when several copies may exist.
 
@@ -227,7 +254,7 @@ Prevention:
 - Keep the native glass surface outside periodic `TimelineView` content so one-second analytics/notch updates do not recreate it.
 - Render repeated notch chips and secondary buttons with lightweight tinted fills, borders, and one restrained shadow.
 - Avoid a full-window Material layer and duplicate glow shadows unless profiling shows they are justified.
-- SwiftUI's public native `Glass` surface exposes regular/clear/identity, tint, and interactivity—not arbitrary CSS-style Frost, Blur, Refraction, or Bezel Depth lens values. When offering those controls, keep the reference/default values numerically tied to the already accepted shell, map unsupported dimensions to bounded optical layers, and state the approximation accurately rather than implying a custom backdrop lens exists.
+- SwiftUI's public native `Glass` surface exposes regular/clear/identity, tint, and interactivity—not arbitrary CSS-style Frost, Blur, Refraction, or Bezel Depth lens values. When offering those controls, keep the reference/default values numerically tied to the already accepted shell, use identity when a true zero-blur endpoint must remove native backdrop processing, map unsupported dimensions to bounded optical layers, and state the approximation accurately rather than implying a custom backdrop lens exists.
 - Keep every optional Material, blur, chromatic edge, and bezel glow conditional so the standard configuration does not silently add compositor work. Test that standard values reproduce the previous constants and that each slider changes only its intended optical dimension.
 - Verify both interaction feel and idle/active CPU with an isolated bundle before installing. A successful compile or geometry test does not prove compositor responsiveness.
 - Transparency alone does not create a rich glass look. Native glass derives much of its luminosity and color from the content behind it, so a small notch over a dark or uniform menu-bar background cannot match a high-key reference render automatically.

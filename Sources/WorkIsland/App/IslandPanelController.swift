@@ -20,7 +20,6 @@ final class IslandPanelController: IslandPanelPresenting {
     private var timedCompletionTimer: Timer?
     private var completionRevealTimer: Timer?
     private var menuTrackingDepth = 0
-    private var isNotchGlassPreviewDismissedUntilRequestEnds = false
 
     init(
         store: WorkTimerStore,
@@ -161,16 +160,18 @@ final class IslandPanelController: IslandPanelPresenting {
             }
             .store(in: &cancellables)
 
-        Publishers.CombineLatest(
-            preferences.$notchGlassPreviewRequestCount
-                .map { $0 > 0 },
-            preferences.$appearance
+        Publishers.CombineLatest3(
+            preferences.$isNotchGlassPreviewRequested,
+            preferences.$appearance,
+            preferences.$notchGlassPreviewRequestRevision
         )
         .removeDuplicates { previous, current in
-            previous.0 == current.0 && previous.1 == current.1
+            previous.0 == current.0
+                && previous.1 == current.1
+                && previous.2 == current.2
         }
         .receive(on: RunLoop.main)
-        .sink { [weak self] isRequested, appearance in
+        .sink { [weak self] isRequested, appearance, _ in
             self?.updateNotchGlassPreview(
                 isRequested: isRequested,
                 appearance: appearance
@@ -263,7 +264,6 @@ final class IslandPanelController: IslandPanelPresenting {
         }
 
         if presentation.dismissNotchGlassPreviewAfterPointerExit() {
-            isNotchGlassPreviewDismissedUntilRequestEnds = true
             return
         }
 
@@ -275,13 +275,11 @@ final class IslandPanelController: IslandPanelPresenting {
         appearance: WorkIslandAppearance
     ) {
         guard isRequested else {
-            isNotchGlassPreviewDismissedUntilRequestEnds = false
             presentation.endNotchGlassPreview()
             return
         }
 
-        guard appearance == .liquidGlass,
-              !isNotchGlassPreviewDismissedUntilRequestEnds else {
+        guard appearance == .liquidGlass else {
             presentation.endNotchGlassPreview()
             return
         }

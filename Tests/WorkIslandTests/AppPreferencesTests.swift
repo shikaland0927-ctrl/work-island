@@ -240,25 +240,30 @@ final class AppPreferencesTests: XCTestCase {
         )
     }
 
-    func testNotchGlassPreviewRequestsAreTransientAndBalanced() throws {
+    func testNotchGlassPreviewRequestsAreTransientAndRestartable() throws {
         let defaults = try temporaryDefaults()
         let preferences = AppPreferences(defaults: defaults)
 
         XCTAssertFalse(preferences.isNotchGlassPreviewRequested)
+        XCTAssertEqual(preferences.notchGlassPreviewRequestRevision, 0)
 
         preferences.beginNotchGlassPreview()
+        XCTAssertTrue(preferences.isNotchGlassPreviewRequested)
+        XCTAssertEqual(preferences.notchGlassPreviewRequestRevision, 1)
+
         preferences.beginNotchGlassPreview()
         XCTAssertTrue(preferences.isNotchGlassPreviewRequested)
-        XCTAssertEqual(preferences.notchGlassPreviewRequestCount, 2)
+        XCTAssertEqual(preferences.notchGlassPreviewRequestRevision, 2)
 
-        preferences.endNotchGlassPreview()
-        XCTAssertTrue(preferences.isNotchGlassPreviewRequested)
-
-        preferences.endNotchGlassPreview()
         preferences.endNotchGlassPreview()
         XCTAssertFalse(preferences.isNotchGlassPreviewRequested)
-        XCTAssertEqual(preferences.notchGlassPreviewRequestCount, 0)
-        XCTAssertNil(defaults.object(forKey: "notchGlassPreviewRequestCount"))
+        XCTAssertEqual(preferences.notchGlassPreviewRequestRevision, 2)
+        XCTAssertNil(
+            defaults.object(forKey: "isNotchGlassPreviewRequested")
+        )
+        XCTAssertNil(
+            defaults.object(forKey: "notchGlassPreviewRequestRevision")
+        )
     }
 
     func testDayStartRejectsInvalidStoredAndNewValues() throws {

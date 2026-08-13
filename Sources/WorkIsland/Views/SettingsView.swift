@@ -41,7 +41,6 @@ struct SettingsPageView: View {
 
 private struct SettingsContent: View {
     @EnvironmentObject private var preferences: AppPreferences
-    @State private var isRequestingNotchGlassPreview = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -50,7 +49,9 @@ private struct SettingsContent: View {
             }
 
             SettingsCard(title: "Notch Glass", systemImage: "drop") {
-                NotchGlassSettingsView()
+                NotchGlassSettingsView {
+                    preferences.beginNotchGlassPreview()
+                }
             }
 
             SettingsCard(title: "Timing", systemImage: "timer") {
@@ -64,18 +65,7 @@ private struct SettingsContent: View {
                 DashboardSettingsView()
             }
         }
-        .onAppear {
-            guard !isRequestingNotchGlassPreview else {
-                return
-            }
-            isRequestingNotchGlassPreview = true
-            preferences.beginNotchGlassPreview()
-        }
         .onDisappear {
-            guard isRequestingNotchGlassPreview else {
-                return
-            }
-            isRequestingNotchGlassPreview = false
             preferences.endNotchGlassPreview()
         }
     }
@@ -299,6 +289,7 @@ private struct GeneralSettingsView: View {
 
 private struct NotchGlassSettingsView: View {
     @EnvironmentObject private var preferences: AppPreferences
+    let onAdjustment: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -327,6 +318,7 @@ private struct NotchGlassSettingsView: View {
                 value: preferences.notchGlassConfiguration.frost,
                 range: NotchGlassConfiguration.frostRange,
                 onChange: {
+                    onAdjustment()
                     preferences.setNotchGlassConfiguration(frost: $0)
                 }
             )
@@ -340,6 +332,7 @@ private struct NotchGlassSettingsView: View {
                 value: preferences.notchGlassConfiguration.blur,
                 range: NotchGlassConfiguration.blurRange,
                 onChange: {
+                    onAdjustment()
                     preferences.setNotchGlassConfiguration(blur: $0)
                 }
             )
@@ -353,6 +346,7 @@ private struct NotchGlassSettingsView: View {
                 value: preferences.notchGlassConfiguration.refraction,
                 range: NotchGlassConfiguration.refractionRange,
                 onChange: {
+                    onAdjustment()
                     preferences.setNotchGlassConfiguration(refraction: $0)
                 }
             )
@@ -366,6 +360,7 @@ private struct NotchGlassSettingsView: View {
                 value: preferences.notchGlassConfiguration.bezelDepth,
                 range: NotchGlassConfiguration.bezelDepthRange,
                 onChange: {
+                    onAdjustment()
                     preferences.setNotchGlassConfiguration(bezelDepth: $0)
                 }
             )

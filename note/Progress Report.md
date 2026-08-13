@@ -56,8 +56,8 @@ Product principles that have been repeated often and must remain stable:
 - The collapsed notch is pure black with no border, accent, text, or chevron.
 - Appearance defaults to Classic. Liquid Glass changes only the expanded notch shell and controls; the collapsed notch remains exactly black.
 - In Liquid Glass, the expanded shell uses regular native glass with a reduced black tint, a vivid indigo cast, and a lightweight diagonal reflection/rim so the underlying desktop reads through without washing out white content. Selected Activities use one high-saturation blue-indigo glass color; Start and Add use high-saturation green with high-contrast white labels. The lightweight control surfaces use less white overlay so these colors do not turn gray. Classic keeps its established Activity and action colors.
-- `Settings > Notch Glass` exposes persisted Frost `0–30`, Blur `0–12`, Refraction `0–250`, and Bezel Depth `2–40` sliders using the reference defaults `12 / 2 / 140 / 14`; Reset restores those values. The notch corner radius remains fixed and is not configurable. Standard values preserve the previous Liquid shell constants. Above the defaults, Frost and Refraction now spread most of their visible change across the full glass face while a subordinate rim preserves definition; this avoids a bright-edge-only result. Lower Blur selects clear native glass, while Blur above the standard adds one stable auxiliary Material layer. Bezel Depth adjusts a bounded rim/glow because SwiftUI's native Glass API does not expose arbitrary CSS-style lens-map values.
-- While a Liquid Glass Settings view is visible, the notch expands automatically and stays available for live adjustment. Leaving Settings or closing its view ends that preview. Entering the notch once and then leaving it dismisses the current preview without changing the saved open mode; a completion alert remains authoritative if both states overlap.
+- `Settings > Notch Glass` exposes persisted Frost `0–30`, Blur `0–12`, Refraction `0–250`, and Bezel Depth `2–40` sliders using the reference defaults `12 / 2 / 140 / 14`; Reset restores those values. The notch corner radius remains fixed and is not configurable. Standard values preserve the previous Liquid shell constants. Above the defaults, Frost and Refraction spread most of their visible change across the full glass face while a subordinate rim preserves definition; this avoids a bright-edge-only result. Blur `0` removes the native backdrop glass/material, Blur `1` uses clear native glass, Blur `2` preserves the accepted regular native glass, and higher values progress through increasingly opaque Material tiers for an intentionally exaggerated endpoint comparison. Bezel Depth adjusts a bounded rim/glow because SwiftUI's native Glass API does not expose arbitrary CSS-style lens-map values.
+- Opening Settings alone does not expand the notch. Moving any Notch Glass slider begins the live Liquid Glass preview; every subsequent slider movement issues a fresh preview revision so adjustment can reopen it after a pointer visit dismissed it. Leaving Settings or closing its view ends the request. Entering the notch once and then leaving it dismisses the current preview without changing the saved open mode; a completion alert remains authoritative if both states overlap.
 - A separate click-through dot appears immediately to its right only while active: green while running, orange while paused.
 - Activity name, optional Item, note, timer, and controls appear only while expanded.
 - The expanded notch is the only live-recording surface.
@@ -207,31 +207,30 @@ Last verified on 2026-08-14:
 
 Direct development channel:
 
-- Source `Info.plist`: version 0.11.21, build 73
+- Source `Info.plist`: version 0.11.22, build 74
 - Staging: `dist.noindex/Work Island.app`
 - Installed: `/Applications/Work Island.app`
 - Bundle ID: `local.shikazeriku.work-island`
-- Staging and installed executable SHA-256 matched: `5bafe21477c809cef4fbaa8d40f1fb7c88ef4849c8db2e416053231d6cf66044`
+- Staging and installed executable SHA-256 matched: `e74707f7c5aa27285589073d3908cc6a79d3e4ca6cf8792b5e7a5832ad98050d`
 - Development bundle is ad-hoc signed, not a friend-beta release.
-- The replaced 0.11.20 build 72 bundle is preserved at `dist.previous.noindex/Work Island 0.11.20 (72)-before-0.11.21.app`; earlier preserved bundles remain under the same `.noindex` directory.
-- The preliminary same-version bundle from before the final inactive-preview guard is preserved at `dist.previous.noindex/Work Island 0.11.21 (73)-pre-final-guard.app`; it is not the installed build.
+- The replaced 0.11.21 build 73 bundle is preserved at `dist.previous.noindex/Work Island 0.11.21 (73)-before-0.11.22.app`; earlier preserved bundles remain under the same `.noindex` directory.
 
 Store channel:
 
-- Local target: version 1.0.0, build 57
+- Local target: version 1.0.0, build 58
 - Permanent bundle ID: `com.shikazeriku.workisland`
-- Latest local archive: `dist.appstore.noindex/Work Island 1.0.0 (57)-20260814-001206.xcarchive`
+- Latest local archive: `dist.appstore.noindex/Work Island 1.0.0 (58)-20260814-013526.xcarchive`
 - Archive is unsigned structural QA only, universal `x86_64 arm64`
-- Archived executable SHA-256: `2daeccd3f8364dc6857a8b0686f4d641997d75c2aef63ef752e35feb9a70893a`
+- Archived executable SHA-256: `2966ade2763e35b94715a23cad93a044bc80a7a3ae9c6e4263e0f933ed0cde04`
 - It has not been Distribution-signed, exported, uploaded, assigned to testers, or selected for review.
 
 Verification baseline:
 
-- All 107 Swift tests passed for the 0.11.21 source, including transient/balanced Settings preview requests, pointer-visit preview dismissal, ending an inactive preview without collapsing an ordinarily expanded notch, completion-alert priority, Notch Glass defaults/ranges, normalization, persistence, Reset, whole-surface high-end optical mappings, standard-value visual constants, Classic-default preference safety, unchanged card geometry, the permanently black collapsed notch, and the earlier timer/layout coverage.
+- All 107 Swift tests passed for the 0.11.22 source, including transient/restartable slider preview requests, pointer-visit preview dismissal, ending an inactive preview without collapsing an ordinarily expanded notch, completion-alert priority, Blur `0 / 1 / 2 / maximum` native-glass and Material mappings, Notch Glass defaults/ranges, normalization, persistence, Reset, whole-surface high-end optical mappings, standard-value visual constants, Classic-default preference safety, unchanged card geometry, the permanently black collapsed notch, and the earlier timer/layout coverage.
 - Direct Release, strict ad-hoc bundle verification, install parity, and unsigned universal Store archive checks passed.
 - Two full installed-app cold launches resolved to `/Applications/Work Island.app/Contents/MacOS/WorkIsland`; direct JSON and the complete preferences domain remained byte/semantically unchanged across installation and both launches.
-- The complete preferences domain semantically matched its pre-install export after both cold launches with no differing key; the normalized semantic SHA-256 was `ff22e9ce9e8ca4a58689ef29fa96d1265502528ef64cbb62ee705436cc60a000`. The user's Liquid Glass appearance and intentionally tested Notch Glass values `30 / 0 / 250 / 2` remained unchanged.
-- Explicitly requested interactive QA for 0.11.21 used bundle ID `local.shikazeriku.work-island.notchglassqa.20260813235119`, an Info.plist `WorkIslandStoragePath` override, and its own defaults domain. Screenshots compared standard `12 / 2 / 140 / 14`, the user's reported mixed endpoint `30 / 0 / 250 / 2`, and all-maximum `30 / 12 / 250 / 40` over detailed background content. The first mapping visibly changed too little; the first strengthening overemphasized a neon edge; the current implementation moves most high-end Frost/Refraction change into an even whole-face wash and keeps a weaker rim. Leaving Settings was visually confirmed to collapse back to the pure-black physical notch. Physical pointer enter/leave dismissal remains user acceptance because accessibility targeting cannot click the nonactivating panel outside the app window reliably.
+- The complete preferences domain semantically matched its pre-install export after both cold launches with no differing key; the normalized semantic SHA-256 was `89e671db984e3aefc52e1fee7b898f3b53e2302e6c0a7f9a97f020d740ae6291`. The user's Liquid Glass appearance and current Notch Glass values `30 / 12 / 250 / 2` remained unchanged. The schema-6 JSON remained byte-identical at SHA-256 `8b271e8b6886990ed3b6891e38470052910044535b96564f33b835bc4a17cc54`, with 3 Activities, 0 child Items, 34 records, and no ActiveWork.
+- Explicitly requested interactive QA for 0.11.22 used bundle ID `local.shikazeriku.work-island.blurqa.20260814`, an Info.plist `WorkIslandStoragePath` override, and its own defaults domain. Opening Settings alone left the panel at its collapsed `176×32`; the first isolated slider movement expanded it to `500×190`. Rendered endpoint screenshots at Frost `12` showed Blur `0` retaining distinct background colors/details while Blur `12` blended the entire face into a much more uniform wash. That run exposed an imbalanced request-counter design after repeated slider changes; the final code uses one idempotent requested flag plus a monotonically changing revision instead. The final build and 107 tests include that fix, and a fresh final isolated launch reconfirmed that Settings alone stays collapsed. macOS locked before the final slider/pointer interaction could be repeated, so those physical interactions remain user acceptance.
 - A five-second expanded-notch sample at all-maximum Notch Glass values used approximately 205–208 MB and ten CPU readings from 0.6% through 2.1%. This is useful evidence against the earlier severe-motion concern but not a substitute for physical slider/hover feedback on the installed build.
 - Every non-installed Work Island staging, derived, and archive registration was removed after archive QA; two complete LaunchServices cleanup passes plus Spotlight found only `/Applications/Work Island.app`.
 - Treat this as a baseline only; rerun the relevant checks after source changes.
@@ -241,7 +240,7 @@ Verification baseline:
 These are not confirmed defects. They require the user's physical interaction and must not be checked off by Codex:
 
 1. Confirm the notch keeps its top-center anchor and expands/collapses symmetrically left and right.
-2. Open Settings while Liquid Glass is selected: confirm the notch expands automatically, slider changes affect the full glass face rather than only a bright edge, leaving Settings closes it, and entering then leaving the notch dismisses that preview without changing the configured Hover/Click mode.
+2. Open Settings while Liquid Glass is selected: confirm the notch stays closed until a Notch Glass slider moves, the first movement opens it, Blur `0` exposes detailed background content while Blur `12` strongly blends the full face, and leaving Settings closes it. Also confirm entering then leaving the preview dismisses it without changing the configured Hover/Click mode, and the next slider movement can open it again.
 3. Switch Timer ↔ Pomodoro and confirm the visible clock does not move.
 4. Switch Timer ↔ Manual and confirm both duration controls have the same layout and behavior. In Manual, confirm Add has no Date, Time, or Set As popup.
 5. In Settings > Timing, confirm Focus, Break, Long, and Sessions retain the standard macOS selection bezel while using equal-width menus, equal visible gaps—including Long–Sessions—and right-aligned headings. Also confirm Set As defaults to End; optionally switch Start/End and add an intentional Manual record to verify its timestamp semantics.
@@ -267,7 +266,7 @@ App Store/TestFlight:
 
 - App Store Connect app record exists for Apple ID `6797406491` with permanent bundle ID `com.shikazeriku.workisland`.
 - Version 1.0.0 build 1 was uploaded and processed. Last observed TestFlight state was `Ready to Submit`; it was not assigned to testers, submitted to App Review, or released.
-- Local source is now build 57; never reuse upload build number 1.
+- Local source is now build 58; never reuse upload build number 1.
 - The user chose free distribution and excluded all 27 EU member states. Do not change legal/trader/storefront choices without asking.
 - Support and Privacy pages were published, and App Privacy was set to `Data Not Collected`. Verify live URLs and App Store Connect state before relying on this.
 - Existing screenshots predate the Activities rename and the move of Manual out of Dashboard; regenerate them before App Review.

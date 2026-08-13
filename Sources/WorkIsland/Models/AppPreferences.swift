@@ -178,11 +178,8 @@ final class AppPreferences: ObservableObject {
     @Published private(set) var isPrepared = false
     @Published private(set) var needsOnboarding = false
     @Published private(set) var showsNotchIntroduction = false
-    @Published private(set) var notchGlassPreviewRequestCount = 0
-
-    var isNotchGlassPreviewRequested: Bool {
-        notchGlassPreviewRequestCount > 0
-    }
+    @Published private(set) var isNotchGlassPreviewRequested = false
+    @Published private(set) var notchGlassPreviewRequestRevision = 0
 
     @Published var appearance: WorkIslandAppearance {
         didSet {
@@ -474,14 +471,12 @@ final class AppPreferences: ObservableObject {
     }
 
     func beginNotchGlassPreview() {
-        notchGlassPreviewRequestCount += 1
+        notchGlassPreviewRequestRevision &+= 1
+        isNotchGlassPreviewRequested = true
     }
 
     func endNotchGlassPreview() {
-        notchGlassPreviewRequestCount = max(
-            0,
-            notchGlassPreviewRequestCount - 1
-        )
+        isNotchGlassPreviewRequested = false
     }
 
     func setDayStartHour(_ hour: Int) {

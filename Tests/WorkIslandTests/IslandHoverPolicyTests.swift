@@ -432,6 +432,23 @@ final class IslandHoverPolicyTests: XCTestCase {
             accuracy: 0.000_001
         )
         XCTAssertEqual(
+            IslandLiquidGlassStyle.nativeGlassVariant(for: configuration),
+            .regular
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.additionalBlurMaterial(
+                for: configuration
+            ),
+            .none
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.fallbackBaseMaterialOpacity(
+                for: configuration
+            ),
+            1,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
             IslandLiquidGlassStyle.frostSheenOpacity(for: configuration),
             0,
             accuracy: 0.000_001
@@ -485,15 +502,48 @@ final class IslandHoverPolicyTests: XCTestCase {
             IslandLiquidGlassStyle.frostSheenOpacity(for: maximum),
             0.10
         )
-        XCTAssertTrue(
-            IslandLiquidGlassStyle.usesClearNativeGlass(for: minimum)
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.nativeGlassVariant(for: minimum),
+            .identity
         )
-        XCTAssertFalse(
-            IslandLiquidGlassStyle.usesClearNativeGlass(for: maximum)
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.nativeGlassVariant(
+                for: NotchGlassConfiguration(
+                    frost: 12,
+                    blur: 1,
+                    refraction: 140,
+                    bezelDepth: 14
+                )
+            ),
+            .clear
         )
-        XCTAssertGreaterThan(
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.nativeGlassVariant(for: maximum),
+            .regular
+        )
+        XCTAssertEqual(
             IslandLiquidGlassStyle.additionalBlurOpacity(for: maximum),
-            0
+            1,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.additionalBlurMaterial(for: maximum),
+            .regular
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.fallbackBaseMaterialOpacity(for: minimum),
+            0,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.fallbackBlackOpacity(for: minimum),
+            0,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.shellBlackOpacity(for: maximum),
+            0.30,
+            accuracy: 0.000_001
         )
         XCTAssertGreaterThan(
             IslandLiquidGlassStyle.shellTintOpacity(for: maximum),
