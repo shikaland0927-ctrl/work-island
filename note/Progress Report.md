@@ -133,7 +133,7 @@ Source of truth:
 
     /Users/shikazeriku/obsidian/app_development/WorkIsland
 
-The app root is a Git repository whose canonical remote is the public `https://github.com/shikaland0927-ctrl/work-island`. The existing public-site history through commit `61ae75a4c1aa1b6c63240a4c281b609edcc3e876` remains intact; the app source was integrated on top while the root GitHub Pages HTML/CSS/SVG blobs stayed unchanged. Build products, QA data, real-data backups, archives, signing material, credentials, and environment files are excluded from tracking. The mistakenly created private `work-island-app` repository is retained only as a noncanonical backup and must not receive routine development pushes.
+The app root is a Git repository whose canonical remote is the public `https://github.com/shikaland0927-ctrl/work-island`. The existing public-site history through commit `61ae75a4c1aa1b6c63240a4c281b609edcc3e876` remains intact; the app source was integrated on top while the root GitHub Pages HTML/CSS/SVG blobs stayed unchanged. The integration is currently on `agent/migrate-app-source` in draft PR `#1`; public `main` remains at the Pages-only commit until the user authorizes the final merge. Build products, QA data, real-data backups, archives, signing material, credentials, and environment files are excluded from tracking. The mistakenly created private `work-island-app` repository is retained only as a noncanonical backup and must not receive routine development pushes.
 
 Entry points:
 
