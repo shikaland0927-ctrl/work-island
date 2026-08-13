@@ -209,6 +209,8 @@ Prevention:
 - Keep the native glass surface outside periodic `TimelineView` content so one-second analytics/notch updates do not recreate it.
 - Render repeated notch chips and secondary buttons with lightweight tinted fills, borders, and one restrained shadow.
 - Avoid a full-window Material layer and duplicate glow shadows unless profiling shows they are justified.
+- SwiftUI's public native `Glass` surface exposes regular/clear/identity, tint, and interactivity—not arbitrary CSS-style Frost, Blur, Refraction, or Bezel Depth lens values. When offering those controls, keep the reference/default values numerically tied to the already accepted shell, map unsupported dimensions to bounded optical layers, and state the approximation accurately rather than implying a custom backdrop lens exists.
+- Keep every optional Material, blur, chromatic edge, and bezel glow conditional so the standard configuration does not silently add compositor work. Test that standard values reproduce the previous constants and that each slider changes only its intended optical dimension.
 - Verify both interaction feel and idle/active CPU with an isolated bundle before installing. A successful compile or geometry test does not prove compositor responsiveness.
 - Transparency alone does not create a rich glass look. Native glass derives much of its luminosity and color from the content behind it, so a small notch over a dark or uniform menu-bar background cannot match a high-key reference render automatically.
 - Compare regular and clear glass over the same realistic fixture before choosing. Clear can expose more background but also wash out dense white labels; prefer regular plus restrained local reflection when legibility wins.

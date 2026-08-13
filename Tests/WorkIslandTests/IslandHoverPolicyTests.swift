@@ -353,6 +353,99 @@ final class IslandHoverPolicyTests: XCTestCase {
         )
     }
 
+    func testStandardNotchGlassParametersPreserveTheCurrentShell() {
+        let configuration = NotchGlassConfiguration.standard
+
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.shellBlackOpacity(for: configuration),
+            IslandLiquidGlassStyle.shellBlackOpacity,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.shellTintOpacity(for: configuration),
+            IslandLiquidGlassStyle.shellTintOpacity,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.shellBorderTintOpacity(for: configuration),
+            IslandLiquidGlassStyle.shellBorderTintOpacity,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.shellReflectionTintOpacity(
+                for: configuration
+            ),
+            IslandLiquidGlassStyle.shellReflectionTintOpacity,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.additionalBlurOpacity(for: configuration),
+            0,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.bezelLineWidth(for: configuration),
+            1,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.chromaticEdgeOpacity(for: configuration),
+            0,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.extraBezelGlowOpacity(for: configuration),
+            0,
+            accuracy: 0.000_001
+        )
+    }
+
+    func testNotchGlassParametersChangeOnlyTheirOpticalDimensions() {
+        let minimum = NotchGlassConfiguration(
+            frost: 0,
+            blur: 0,
+            refraction: 0,
+            bezelDepth: 2
+        )
+        let maximum = NotchGlassConfiguration(
+            frost: 30,
+            blur: 12,
+            refraction: 250,
+            bezelDepth: 40
+        )
+
+        XCTAssertLessThan(
+            IslandLiquidGlassStyle.shellBlackOpacity(for: minimum),
+            IslandLiquidGlassStyle.shellBlackOpacity(for: maximum)
+        )
+        XCTAssertTrue(
+            IslandLiquidGlassStyle.usesClearNativeGlass(for: minimum)
+        )
+        XCTAssertFalse(
+            IslandLiquidGlassStyle.usesClearNativeGlass(for: maximum)
+        )
+        XCTAssertGreaterThan(
+            IslandLiquidGlassStyle.additionalBlurOpacity(for: maximum),
+            0
+        )
+        XCTAssertGreaterThan(
+            IslandLiquidGlassStyle.shellTintOpacity(for: maximum),
+            IslandLiquidGlassStyle.shellTintOpacity(for: minimum)
+        )
+        XCTAssertGreaterThan(
+            IslandLiquidGlassStyle.chromaticEdgeOpacity(for: maximum),
+            0
+        )
+        XCTAssertGreaterThan(
+            IslandLiquidGlassStyle.bezelLineWidth(for: maximum),
+            IslandLiquidGlassStyle.bezelLineWidth(for: minimum)
+        )
+        XCTAssertGreaterThan(
+            IslandLiquidGlassStyle.extraBezelGlowOpacity(for: maximum),
+            0
+        )
+    }
+
     func testCompactProgressAddsOnlySideAndBottomSpaceAroundTheNotch() {
         let collapsedSize = NSSize(width: 177, height: 31)
         let progressSize = IslandPanelLayout.compactProgressSize(

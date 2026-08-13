@@ -103,6 +103,50 @@ enum HeatmapTint: String, CaseIterable, Identifiable {
     }
 }
 
+struct NotchGlassConfiguration: Equatable {
+    static let frostRange = 0...30
+    static let blurRange = 0...12
+    static let refractionRange = 0...250
+    static let bezelDepthRange = 2...40
+
+    static let standard = NotchGlassConfiguration(
+        frost: 12,
+        blur: 2,
+        refraction: 140,
+        bezelDepth: 14
+    )
+
+    let frost: Int
+    let blur: Int
+    let refraction: Int
+    let bezelDepth: Int
+
+    init(
+        frost: Int,
+        blur: Int,
+        refraction: Int,
+        bezelDepth: Int
+    ) {
+        self.frost = Self.normalized(frost, in: Self.frostRange)
+        self.blur = Self.normalized(blur, in: Self.blurRange)
+        self.refraction = Self.normalized(
+            refraction,
+            in: Self.refractionRange
+        )
+        self.bezelDepth = Self.normalized(
+            bezelDepth,
+            in: Self.bezelDepthRange
+        )
+    }
+
+    private static func normalized(
+        _ value: Int,
+        in range: ClosedRange<Int>
+    ) -> Int {
+        min(range.upperBound, max(range.lowerBound, value))
+    }
+}
+
 final class AppPreferences: ObservableObject {
     static let timerDurationRange = 1...(24 * 60 + 59)
 
@@ -125,6 +169,10 @@ final class AppPreferences: ObservableObject {
         static let completionRevealMode = "completionRevealMode"
         static let showsCompactProgress = "showsCompactTimerProgress"
         static let appearance = "appearanceStyle"
+        static let notchGlassFrost = "notchGlassFrost"
+        static let notchGlassBlur = "notchGlassBlur"
+        static let notchGlassRefraction = "notchGlassRefraction"
+        static let notchGlassBezelDepth = "notchGlassBezelDepth"
     }
 
     @Published private(set) var isPrepared = false
@@ -134,6 +182,27 @@ final class AppPreferences: ObservableObject {
     @Published var appearance: WorkIslandAppearance {
         didSet {
             defaults.set(appearance.rawValue, forKey: Key.appearance)
+        }
+    }
+
+    @Published private(set) var notchGlassConfiguration: NotchGlassConfiguration {
+        didSet {
+            defaults.set(
+                notchGlassConfiguration.frost,
+                forKey: Key.notchGlassFrost
+            )
+            defaults.set(
+                notchGlassConfiguration.blur,
+                forKey: Key.notchGlassBlur
+            )
+            defaults.set(
+                notchGlassConfiguration.refraction,
+                forKey: Key.notchGlassRefraction
+            )
+            defaults.set(
+                notchGlassConfiguration.bezelDepth,
+                forKey: Key.notchGlassBezelDepth
+            )
         }
     }
 
@@ -252,6 +321,18 @@ final class AppPreferences: ObservableObject {
         appearance = WorkIslandAppearance(
             rawValue: defaults.string(forKey: Key.appearance) ?? ""
         ) ?? .classic
+        notchGlassConfiguration = NotchGlassConfiguration(
+            frost: defaults.object(forKey: Key.notchGlassFrost) as? Int
+                ?? NotchGlassConfiguration.standard.frost,
+            blur: defaults.object(forKey: Key.notchGlassBlur) as? Int
+                ?? NotchGlassConfiguration.standard.blur,
+            refraction: defaults.object(
+                forKey: Key.notchGlassRefraction
+            ) as? Int ?? NotchGlassConfiguration.standard.refraction,
+            bezelDepth: defaults.object(
+                forKey: Key.notchGlassBezelDepth
+            ) as? Int ?? NotchGlassConfiguration.standard.bezelDepth
+        )
         notchOpenMode = NotchOpenMode(
             rawValue: defaults.string(forKey: Key.notchOpenMode) ?? ""
         ) ?? .hover
@@ -367,6 +448,24 @@ final class AppPreferences: ObservableObject {
         dashboardOrder = DashboardCard.defaultOrder
         hiddenDashboardCards = []
         heatmapTint = .indigo
+    }
+
+    func setNotchGlassConfiguration(
+        frost: Int? = nil,
+        blur: Int? = nil,
+        refraction: Int? = nil,
+        bezelDepth: Int? = nil
+    ) {
+        notchGlassConfiguration = NotchGlassConfiguration(
+            frost: frost ?? notchGlassConfiguration.frost,
+            blur: blur ?? notchGlassConfiguration.blur,
+            refraction: refraction ?? notchGlassConfiguration.refraction,
+            bezelDepth: bezelDepth ?? notchGlassConfiguration.bezelDepth
+        )
+    }
+
+    func resetNotchGlassConfiguration() {
+        notchGlassConfiguration = .standard
     }
 
     func setDayStartHour(_ hour: Int) {

@@ -94,6 +94,12 @@ final class DashboardLayoutTests: XCTestCase {
             SettingsControlLayout.pomodoroFieldWidth * 4
                 + SettingsControlLayout.pomodoroSpacing * 3
         )
+        XCTAssertEqual(SettingsControlLayout.notchGlassControlWidth, 300)
+        XCTAssertLessThanOrEqual(
+            SettingsControlLayout.notchGlassSliderWidth
+                + SettingsControlLayout.notchGlassValueWidth + 10,
+            SettingsControlLayout.notchGlassControlWidth
+        )
     }
 
     func testDashboardSettingsListFitsThreeRowsWithBalancedInsets() {

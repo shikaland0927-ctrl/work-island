@@ -108,6 +108,8 @@ struct IslandAppearancePolicy {
 struct IslandLiquidGlassStyle {
     static let shellBlackOpacity = 0.12
     static let shellTintOpacity = 0.14
+    static let shellBorderTintOpacity = 0.32
+    static let shellReflectionTintOpacity = 0.14
     static let primaryActionTintOpacity = 0.70
     static let selectedActivityTintOpacity = 0.76
     static let controlWhiteOverlayOpacity = 0.025
@@ -133,11 +135,143 @@ struct IslandLiquidGlassStyle {
             blue: selectedActivityRGB.blue
         )
     }
+
+    static func shellBlackOpacity(
+        for configuration: NotchGlassConfiguration
+    ) -> Double {
+        Double(configuration.frost) / 100
+    }
+
+    static func shellTintOpacity(
+        for configuration: NotchGlassConfiguration
+    ) -> Double {
+        min(0.26, shellTintOpacity * refractionRatio(configuration))
+    }
+
+    static func shellBorderTintOpacity(
+        for configuration: NotchGlassConfiguration
+    ) -> Double {
+        min(
+            0.58,
+            shellBorderTintOpacity * refractionRatio(configuration)
+        )
+    }
+
+    static func shellReflectionTintOpacity(
+        for configuration: NotchGlassConfiguration
+    ) -> Double {
+        min(
+            0.25,
+            shellReflectionTintOpacity * refractionRatio(configuration)
+        )
+    }
+
+    static func additionalBlurOpacity(
+        for configuration: NotchGlassConfiguration
+    ) -> Double {
+        let extraBlur = max(
+            0,
+            configuration.blur - NotchGlassConfiguration.standard.blur
+        )
+        let availableRange = max(
+            1,
+            NotchGlassConfiguration.blurRange.upperBound
+                - NotchGlassConfiguration.standard.blur
+        )
+        return Double(extraBlur) / Double(availableRange) * 0.45
+    }
+
+    static func reflectionBlurRadius(
+        for configuration: NotchGlassConfiguration
+    ) -> CGFloat {
+        CGFloat(
+            max(
+                0,
+                configuration.blur - NotchGlassConfiguration.standard.blur
+            )
+        ) * 0.15
+    }
+
+    static func usesClearNativeGlass(
+        for configuration: NotchGlassConfiguration
+    ) -> Bool {
+        configuration.blur < NotchGlassConfiguration.standard.blur
+    }
+
+    static func bezelLineWidth(
+        for configuration: NotchGlassConfiguration
+    ) -> CGFloat {
+        let ratio = Double(configuration.bezelDepth)
+            / Double(NotchGlassConfiguration.standard.bezelDepth)
+        return CGFloat(min(2.25, max(0.5, ratio)))
+    }
+
+    static func bezelHighlightOpacity(
+        for configuration: NotchGlassConfiguration
+    ) -> Double {
+        let ratio = Double(configuration.bezelDepth)
+            / Double(NotchGlassConfiguration.standard.bezelDepth)
+        return min(0.82, 0.56 * sqrt(ratio))
+    }
+
+    static func bezelSecondaryOpacity(
+        for configuration: NotchGlassConfiguration
+    ) -> Double {
+        let ratio = Double(configuration.bezelDepth)
+            / Double(NotchGlassConfiguration.standard.bezelDepth)
+        return min(0.28, 0.14 * sqrt(ratio))
+    }
+
+    static func extraBezelGlowOpacity(
+        for configuration: NotchGlassConfiguration
+    ) -> Double {
+        let extraDepth = max(
+            0,
+            configuration.bezelDepth
+                - NotchGlassConfiguration.standard.bezelDepth
+        )
+        let availableRange = max(
+            1,
+            NotchGlassConfiguration.bezelDepthRange.upperBound
+                - NotchGlassConfiguration.standard.bezelDepth
+        )
+        return Double(extraDepth) / Double(availableRange) * 0.18
+    }
+
+    static func chromaticEdgeOpacity(
+        for configuration: NotchGlassConfiguration
+    ) -> Double {
+        let extraRefraction = max(
+            0,
+            configuration.refraction
+                - NotchGlassConfiguration.standard.refraction
+        )
+        let availableRange = max(
+            1,
+            NotchGlassConfiguration.refractionRange.upperBound
+                - NotchGlassConfiguration.standard.refraction
+        )
+        return Double(extraRefraction) / Double(availableRange) * 0.16
+    }
+
+    static func fallbackBlackOpacity(
+        for configuration: NotchGlassConfiguration
+    ) -> Double {
+        min(0.62, 0.28 + shellBlackOpacity(for: configuration))
+    }
+
+    private static func refractionRatio(
+        _ configuration: NotchGlassConfiguration
+    ) -> Double {
+        Double(configuration.refraction)
+            / Double(NotchGlassConfiguration.standard.refraction)
+    }
 }
 
 private struct IslandNotchBackground: View {
     let isExpanded: Bool
     let appearance: WorkIslandAppearance
+    let configuration: NotchGlassConfiguration
 
     @ViewBuilder
     var body: some View {
@@ -149,29 +283,53 @@ private struct IslandNotchBackground: View {
             appearance: appearance
         ) {
             if #available(macOS 26.0, *) {
+                let glass = IslandLiquidGlassStyle.usesClearNativeGlass(
+                    for: configuration
+                ) ? Glass.clear : Glass.regular
+
                 shape
                     .fill(
                         Color.black.opacity(
-                            IslandLiquidGlassStyle.shellBlackOpacity
+                            IslandLiquidGlassStyle.shellBlackOpacity(
+                                for: configuration
+                            )
                         )
                     )
+                    .background {
+                        additionalBlurLayer(shape: shape)
+                    }
                     .glassEffect(
-                        .regular.tint(
+                        glass.tint(
                             IslandLiquidGlassStyle.selectedActivityTint.opacity(
-                                IslandLiquidGlassStyle.shellTintOpacity
+                                IslandLiquidGlassStyle.shellTintOpacity(
+                                    for: configuration
+                                )
                             )
                         ),
                         in: shape
                     )
                     .overlay { liquidReflection(shape: shape) }
+                    .overlay { liquidChromaticEdge(shape: shape) }
+                    .overlay { liquidBezelGlow(shape: shape) }
                     .overlay { liquidBorder(shape: shape) }
             } else {
                 shape
                     .fill(.ultraThinMaterial)
+                    .background {
+                        additionalBlurLayer(shape: shape)
+                    }
                     .overlay {
-                        shape.fill(Color.black.opacity(0.40))
+                        shape.fill(
+                            Color.black.opacity(
+                                IslandLiquidGlassStyle.fallbackBlackOpacity(
+                                    for: configuration
+                                )
+                            )
+                        )
                     }
                     .overlay { liquidReflection(shape: shape) }
+                    .overlay { liquidChromaticEdge(shape: shape) }
+                    .overlay { liquidBezelGlow(shape: shape) }
                     .overlay { liquidBorder(shape: shape) }
             }
         } else {
@@ -183,19 +341,34 @@ private struct IslandNotchBackground: View {
         shape.stroke(
             LinearGradient(
                 colors: [
-                    Color.white.opacity(0.56),
-                    Color.white.opacity(0.14),
-                    IslandLiquidGlassStyle.selectedActivityTint.opacity(0.32)
+                    Color.white.opacity(
+                        IslandLiquidGlassStyle.bezelHighlightOpacity(
+                            for: configuration
+                        )
+                    ),
+                    Color.white.opacity(
+                        IslandLiquidGlassStyle.bezelSecondaryOpacity(
+                            for: configuration
+                        )
+                    ),
+                    IslandLiquidGlassStyle.selectedActivityTint.opacity(
+                        IslandLiquidGlassStyle.shellBorderTintOpacity(
+                            for: configuration
+                        )
+                    )
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ),
-            lineWidth: 1
+            lineWidth: IslandLiquidGlassStyle.bezelLineWidth(
+                for: configuration
+            )
         )
     }
 
+    @ViewBuilder
     private func liquidReflection(shape: NotchShape) -> some View {
-        shape
+        let reflection = shape
             .fill(
                 LinearGradient(
                     stops: [
@@ -203,7 +376,11 @@ private struct IslandNotchBackground: View {
                         .init(color: Color.white.opacity(0.04), location: 0.24),
                         .init(color: .clear, location: 0.58),
                         .init(
-                            color: IslandLiquidGlassStyle.selectedActivityTint.opacity(0.14),
+                            color: IslandLiquidGlassStyle.selectedActivityTint.opacity(
+                                IslandLiquidGlassStyle.shellReflectionTintOpacity(
+                                    for: configuration
+                                )
+                            ),
                             location: 1
                         )
                     ],
@@ -212,6 +389,79 @@ private struct IslandNotchBackground: View {
                 )
             )
             .blendMode(.screen)
+        let blurRadius = IslandLiquidGlassStyle.reflectionBlurRadius(
+            for: configuration
+        )
+
+        if blurRadius > 0 {
+            reflection.blur(radius: blurRadius)
+        } else {
+            reflection
+        }
+    }
+
+    @ViewBuilder
+    private func additionalBlurLayer(shape: NotchShape) -> some View {
+        let opacity = IslandLiquidGlassStyle.additionalBlurOpacity(
+            for: configuration
+        )
+        if opacity > 0 {
+            shape
+                .fill(.ultraThinMaterial)
+                .opacity(opacity)
+        }
+    }
+
+    @ViewBuilder
+    private func liquidChromaticEdge(shape: NotchShape) -> some View {
+        let opacity = IslandLiquidGlassStyle.chromaticEdgeOpacity(
+            for: configuration
+        )
+        if opacity > 0 {
+            shape
+                .stroke(
+                    AngularGradient(
+                        colors: [
+                            IslandLiquidGlassStyle.primaryActionTint.opacity(
+                                opacity * 0.65
+                            ),
+                            Color.cyan.opacity(opacity),
+                            IslandLiquidGlassStyle.selectedActivityTint.opacity(
+                                opacity
+                            ),
+                            .clear,
+                            IslandLiquidGlassStyle.primaryActionTint.opacity(
+                                opacity * 0.65
+                            )
+                        ],
+                        center: .center
+                    ),
+                    lineWidth: IslandLiquidGlassStyle.bezelLineWidth(
+                        for: configuration
+                    ) + 0.75
+                )
+                .blur(radius: 0.45)
+                .blendMode(.screen)
+        }
+    }
+
+    @ViewBuilder
+    private func liquidBezelGlow(shape: NotchShape) -> some View {
+        let opacity = IslandLiquidGlassStyle.extraBezelGlowOpacity(
+            for: configuration
+        )
+        if opacity > 0 {
+            shape
+                .stroke(
+                    Color.white.opacity(opacity),
+                    lineWidth: IslandLiquidGlassStyle.bezelLineWidth(
+                        for: configuration
+                    ) + 2
+                )
+                .blur(radius: 1.4)
+                .mask(shape)
+                .blendMode(.screen)
+        }
     }
 }
 
@@ -230,7 +480,8 @@ struct TimerIslandView: View {
         ZStack(alignment: .top) {
             IslandNotchBackground(
                 isExpanded: presentation.isExpanded,
-                appearance: preferences.appearance
+                appearance: preferences.appearance,
+                configuration: preferences.notchGlassConfiguration
             )
 
             TimelineView(.periodic(from: .now, by: 1)) { context in

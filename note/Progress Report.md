@@ -56,6 +56,7 @@ Product principles that have been repeated often and must remain stable:
 - The collapsed notch is pure black with no border, accent, text, or chevron.
 - Appearance defaults to Classic. Liquid Glass changes only the expanded notch shell and controls; the collapsed notch remains exactly black.
 - In Liquid Glass, the expanded shell uses regular native glass with a reduced black tint, a vivid indigo cast, and a lightweight diagonal reflection/rim so the underlying desktop reads through without washing out white content. Selected Activities use one high-saturation blue-indigo glass color; Start and Add use high-saturation green with high-contrast white labels. The lightweight control surfaces use less white overlay so these colors do not turn gray. Classic keeps its established Activity and action colors.
+- `Settings > Notch Glass` exposes persisted Frost `0–30`, Blur `0–12`, Refraction `0–250`, and Bezel Depth `2–40` sliders using the reference defaults `12 / 2 / 140 / 14`; Reset restores those values. The notch corner radius remains fixed and is not configurable. Standard values preserve the previous Liquid shell constants, lower Blur selects clear native glass, and only Blur above the standard value adds one stable auxiliary Material layer. Refraction and Bezel Depth adjust bounded edge-light/rim layers because SwiftUI's native Glass API does not expose arbitrary CSS-style lens-map values.
 - A separate click-through dot appears immediately to its right only while active: green while running, orange while paused.
 - Activity name, optional Item, note, timer, and controls appear only while expanded.
 - The expanded notch is the only live-recording surface.
@@ -122,6 +123,7 @@ History:
 Settings and onboarding:
 
 - General: Appearance, Launch at Login, Open Notch mode, Day Starts. Appearance is persisted only after the user changes it; an existing install remains Classic without gaining a new defaults key on launch.
+- Notch Glass: Frost, Blur, Refraction, and Bezel Depth apply only to the expanded Liquid Glass shell. Values update live, persist independently, normalize to the supported ranges, and do not gain defaults keys until the user adjusts or resets them.
 - Timing: Alert, compact Progress, Manual Set As Start/End, and Pomodoro Focus/Break/Long/Sessions. All four use one shared trailing-aligned native `NSPopUpButton` subtree; the standard macOS bezels themselves fill the same 76-point columns with equal 10-point visible gaps.
 - Dashboard: optional Heatmap/Graph/Distribution visibility/order and Heatmap tint. Total and Stats are not configurable. Its three-row reorder list uses balanced top/bottom insets and a rounded outer shape.
 - First run asks only for one initial Activity and Launch at Login, then shows `Move your pointer to the notch.` once.
@@ -189,11 +191,11 @@ The Store bundle `com.shikazeriku.workisland` is sandboxed and stores data in it
 
 Last verified direct data snapshot on 2026-08-13—not a restore target:
 
-- SHA-256: `313c968d1aa94e298aceee0704c2919d89da34f8ec363cc6a7d0bd408f0906b9`
+- SHA-256: `8b271e8b6886990ed3b6891e38470052910044535b96564f33b835bc4a17cc54`
 - schema 6
 - 3 Activities
 - 0 child Items
-- 33 records
+- 34 records
 - no ActiveWork
 
 Always inspect the live file again. A new hash or record count can be legitimate user work.
@@ -204,31 +206,31 @@ Last verified on 2026-08-13:
 
 Direct development channel:
 
-- Source `Info.plist`: version 0.11.19, build 71
+- Source `Info.plist`: version 0.11.20, build 72
 - Staging: `dist.noindex/Work Island.app`
 - Installed: `/Applications/Work Island.app`
 - Bundle ID: `local.shikazeriku.work-island`
-- Staging and installed executable SHA-256 matched: `acab55ee85fd2360321fab52de77151b98ab36cf98e0caecb701a4bdda914db0`
+- Staging and installed executable SHA-256 matched: `d652683d44ed4e5deb1b49d1dd2442a7e783a6152261cefc323c43484d1e0ebb`
 - Development bundle is ad-hoc signed, not a friend-beta release.
-- The replaced 0.11.18 build 70 bundle is preserved at `dist.previous.noindex/Work Island 0.11.18 (70)-before-0.11.19.app`; earlier preserved bundles remain under the same `.noindex` directory.
+- The replaced 0.11.19 build 71 bundle is preserved at `dist.previous.noindex/Work Island 0.11.19 (71)-before-0.11.20.app`; earlier preserved bundles remain under the same `.noindex` directory.
 
 Store channel:
 
-- Local target: version 1.0.0, build 55
+- Local target: version 1.0.0, build 56
 - Permanent bundle ID: `com.shikazeriku.workisland`
-- Latest local archive: `dist.appstore.noindex/Work Island 1.0.0 (55)-20260813-230505.xcarchive`
+- Latest local archive: `dist.appstore.noindex/Work Island 1.0.0 (56)-20260813-233620.xcarchive`
 - Archive is unsigned structural QA only, universal `x86_64 arm64`
-- Archived executable SHA-256: `6a1b5a39bf2283fb55817021fcc6f92d5dbd167f748c6f3d9798b00c6eee91dd`
+- Archived executable SHA-256: `a17059858b35796eea50235e4bb5178e33bf242926d4a619a8009380b4027d9f`
 - It has not been Distribution-signed, exported, uploaded, assigned to testers, or selected for review.
 
 Verification baseline:
 
-- All 99 Swift tests passed for the 0.11.19 source, including the high-saturation Liquid tint thresholds, clearer shell policy, Classic-default preference safety, Liquid Glass persistence, unchanged card geometry, the permanently black collapsed notch, and the earlier timer/layout coverage.
+- All 103 Swift tests passed for the 0.11.20 source, including Notch Glass defaults/ranges, normalization, persistence, Reset, bounded optical mappings, standard-value visual constants, the high-saturation Liquid tint thresholds, Classic-default preference safety, unchanged card geometry, the permanently black collapsed notch, and the earlier timer/layout coverage.
 - Direct Release, strict ad-hoc bundle verification, install parity, and unsigned universal Store archive checks passed.
 - Two full installed-app cold launches resolved to `/Applications/Work Island.app/Contents/MacOS/WorkIsland`; direct JSON and the complete preferences domain remained byte/semantically unchanged across installation and both launches.
-- The complete preferences domain semantically matched its pre-QA export with no differing key; that export's SHA-256 was `f6ee36687afc51503bae5de3907f65728576b764641aa272187a77408f5e5dc0`, and the user's pre-existing `appearanceStyle = liquidGlass` setting remained unchanged.
+- The complete preferences domain semantically matched its pre-install export after both cold launches with no differing key; that export's SHA-256 was `e25ddad3a0c453e8da148742762bf1dc2ff77e3a4367b15222cd7b3975f5b6fd`, and the user's pre-existing Liquid Glass appearance remained unchanged without automatically adding Notch Glass keys.
 - Explicitly requested interactive QA used a unique temporary bundle ID, isolated JSON, and isolated preferences. The Activity screenshot confirmed New, active, and archived-capable rows now use the same shared glass frame path as Dashboard/History/Settings. The nonactivating notch panel could not be reliably expanded through accessibility automation, so final saturation/translucency remains a physical user check rather than an automated acceptance claim. Production JSON remained byte-identical. macOS normalized only the old-display `NSWindow Frame main` preference during QA/cold launch; that single known key was restored after the final launch, after which the complete preferences domain semantically matched its pre-QA export.
-- A five-second final resident-process sample used approximately 90 MB and showed periodic CPU readings from 0% through 17.2%. The color change did not add a native glass surface, but this short sample is evidence that the existing one-second notch update path still produces bursts; do not claim idle performance is solved without profiling and physical user feedback.
+- A five-second final resident-process sample at the standard Notch Glass values used approximately 132 MB and showed CPU readings from 0% through 3.4%. The standard values add no auxiliary Material, chromatic-edge, or bezel-glow layer, but this short collapsed-state sample is not proof of expanded interaction performance; high Blur deliberately enables one extra stable Material layer and still requires physical feedback.
 - Every non-installed Work Island staging, derived, and archive registration was removed after archive QA; two complete LaunchServices cleanup passes plus Spotlight found only `/Applications/Work Island.app`.
 - Treat this as a baseline only; rerun the relevant checks after source changes.
 
@@ -248,7 +250,7 @@ These are not confirmed defects. They require the user's physical interaction an
 10. With Launch at Login enabled, perform a real logout/restart; before opening manually, confirm the notch is resident and opens.
 11. Confirm behavior on multiple displays if that scenario matters; there is no display preference yet.
 12. Let both Timer and Pomodoro reach zero and confirm the existing completion row appears to ring silently in short bursts while the Done button stays still. With Reduce Motion enabled in macOS, confirm the ringing stops.
-13. Physically confirm Liquid Glass now feels responsive and that the expanded notch shows a clean glass reflection/translucency over the user's real wallpaper while keeping white text readable. Also confirm selected Activities are a clear high-saturation blue-indigo, Start/Add are vivid green without gray haze, Activity cards have exactly the same perimeter/optical rim as Dashboard/History/Settings, Liquid selection pills move cleanly, Classic is visually unchanged, and the closed notch stays pure black.
+13. Physically confirm Liquid Glass now feels responsive and that the expanded notch shows a clean glass reflection/translucency over the user's real wallpaper while keeping white text readable. In Settings > Notch Glass, move Frost, Blur, Refraction, and Bezel Depth through low/high values and confirm each changes only the expanded Liquid shell, Reset returns to `12 / 2 / 140 / 14`, the corner radius never changes, and the values survive a full quit/relaunch. Also confirm selected Activities are a clear high-saturation blue-indigo, Start/Add are vivid green without gray haze, Activity cards have exactly the same perimeter/optical rim as Dashboard/History/Settings, Liquid selection pills move cleanly, Classic is visually unchanged, and the closed notch stays pure black.
 
 ## Release state and boundaries
 
@@ -262,7 +264,7 @@ App Store/TestFlight:
 
 - App Store Connect app record exists for Apple ID `6797406491` with permanent bundle ID `com.shikazeriku.workisland`.
 - Version 1.0.0 build 1 was uploaded and processed. Last observed TestFlight state was `Ready to Submit`; it was not assigned to testers, submitted to App Review, or released.
-- Local source is now build 55; never reuse upload build number 1.
+- Local source is now build 56; never reuse upload build number 1.
 - The user chose free distribution and excluded all 27 EU member states. Do not change legal/trader/storefront choices without asking.
 - Support and Privacy pages were published, and App Privacy was set to `Data Not Collected`. Verify live URLs and App Store Connect state before relying on this.
 - Existing screenshots predate the Activities rename and the move of Manual out of Dashboard; regenerate them before App Review.

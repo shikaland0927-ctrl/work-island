@@ -5,6 +5,9 @@ import SwiftUI
 struct SettingsControlLayout {
     static let standardTrailingWidth: CGFloat = 220
     static let notchOpenWidth: CGFloat = 300
+    static let notchGlassControlWidth: CGFloat = 300
+    static let notchGlassSliderWidth: CGFloat = 246
+    static let notchGlassValueWidth: CGFloat = 36
     static let pomodoroMenuWidth: CGFloat = 76
     static let pomodoroMenuHeight: CGFloat = 24
     static let pomodoroFieldWidth = pomodoroMenuWidth
@@ -41,6 +44,10 @@ private struct SettingsContent: View {
         VStack(alignment: .leading, spacing: 20) {
             SettingsCard(title: "General", systemImage: "gearshape") {
                 GeneralSettingsView()
+            }
+
+            SettingsCard(title: "Notch Glass", systemImage: "drop") {
+                NotchGlassSettingsView()
             }
 
             SettingsCard(title: "Timing", systemImage: "timer") {
@@ -269,6 +276,125 @@ private struct GeneralSettingsView: View {
             return "Click the notch once to open it."
         case .doubleClick:
             return "Double-click the notch to open it."
+        }
+    }
+}
+
+private struct NotchGlassSettingsView: View {
+    @EnvironmentObject private var preferences: AppPreferences
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                Text("Expanded notch in Liquid Glass only.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button("Reset") {
+                    preferences.resetNotchGlassConfiguration()
+                }
+                .buttonStyle(.borderless)
+                .disabled(
+                    preferences.notchGlassConfiguration == .standard
+                )
+            }
+
+            Divider()
+
+            sliderRow(
+                title: "Frost",
+                detail: "Adjust the glass density.",
+                systemImage: "cloud.fog",
+                value: preferences.notchGlassConfiguration.frost,
+                range: NotchGlassConfiguration.frostRange,
+                onChange: {
+                    preferences.setNotchGlassConfiguration(frost: $0)
+                }
+            )
+
+            Divider()
+
+            sliderRow(
+                title: "Blur",
+                detail: "Soften the desktop behind the notch.",
+                systemImage: "drop",
+                value: preferences.notchGlassConfiguration.blur,
+                range: NotchGlassConfiguration.blurRange,
+                onChange: {
+                    preferences.setNotchGlassConfiguration(blur: $0)
+                }
+            )
+
+            Divider()
+
+            sliderRow(
+                title: "Refraction",
+                detail: "Strengthen the colored edge light.",
+                systemImage: "sparkles",
+                value: preferences.notchGlassConfiguration.refraction,
+                range: NotchGlassConfiguration.refractionRange,
+                onChange: {
+                    preferences.setNotchGlassConfiguration(refraction: $0)
+                }
+            )
+
+            Divider()
+
+            sliderRow(
+                title: "Bezel Depth",
+                detail: "Strengthen the inner glass rim.",
+                systemImage: "square.on.square",
+                value: preferences.notchGlassConfiguration.bezelDepth,
+                range: NotchGlassConfiguration.bezelDepthRange,
+                onChange: {
+                    preferences.setNotchGlassConfiguration(bezelDepth: $0)
+                }
+            )
+        }
+    }
+
+    private func sliderRow(
+        title: String,
+        detail: String,
+        systemImage: String,
+        value: Int,
+        range: ClosedRange<Int>,
+        onChange: @escaping (Int) -> Void
+    ) -> some View {
+        SettingsRow {
+            SettingsControlLabel(
+                title: title,
+                detail: detail,
+                systemImage: systemImage
+            )
+        } control: {
+            HStack(spacing: 10) {
+                Slider(
+                    value: Binding(
+                        get: { Double(value) },
+                        set: { onChange(Int($0.rounded())) }
+                    ),
+                    in: Double(range.lowerBound)...Double(range.upperBound),
+                    step: 1
+                )
+                .frame(width: SettingsControlLayout.notchGlassSliderWidth)
+                .accessibilityLabel(title)
+                .accessibilityValue("\(value)")
+
+                Text("\(value)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(
+                        width: SettingsControlLayout.notchGlassValueWidth,
+                        alignment: .trailing
+                    )
+            }
+            .frame(
+                width: SettingsControlLayout.notchGlassControlWidth,
+                alignment: .trailing
+            )
         }
     }
 }
