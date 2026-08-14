@@ -312,20 +312,6 @@ private struct NotchGlassSettingsView: View {
             Divider()
 
             sliderRow(
-                title: "Frost",
-                detail: "Adjust the glass density.",
-                systemImage: "cloud.fog",
-                value: preferences.notchGlassConfiguration.frost,
-                range: NotchGlassConfiguration.frostRange,
-                onChange: {
-                    onAdjustment()
-                    preferences.setNotchGlassConfiguration(frost: $0)
-                }
-            )
-
-            Divider()
-
-            sliderRow(
                 title: "Blur",
                 detail: "Soften the desktop behind the notch.",
                 systemImage: "drop",
@@ -341,27 +327,21 @@ private struct NotchGlassSettingsView: View {
 
             sliderRow(
                 title: "Refraction",
-                detail: "Strengthen the even edge lens.",
+                detail: "Set the glass refractive index.",
                 systemImage: "sparkles",
-                value: preferences.notchGlassConfiguration.refraction,
-                range: NotchGlassConfiguration.refractionRange,
+                value: preferences.notchGlassConfiguration
+                    .refractiveIndexHundredths,
+                range: NotchGlassConfiguration
+                    .refractiveIndexHundredthsRange,
+                step: 5,
+                valueText: {
+                    String(format: "%.2f", Double($0) / 100)
+                },
                 onChange: {
                     onAdjustment()
-                    preferences.setNotchGlassConfiguration(refraction: $0)
-                }
-            )
-
-            Divider()
-
-            sliderRow(
-                title: "Bezel Depth",
-                detail: "Strengthen the inner glass rim.",
-                systemImage: "square.on.square",
-                value: preferences.notchGlassConfiguration.bezelDepth,
-                range: NotchGlassConfiguration.bezelDepthRange,
-                onChange: {
-                    onAdjustment()
-                    preferences.setNotchGlassConfiguration(bezelDepth: $0)
+                    preferences.setNotchGlassConfiguration(
+                        refractiveIndexHundredths: $0
+                    )
                 }
             )
         }
@@ -373,9 +353,13 @@ private struct NotchGlassSettingsView: View {
         systemImage: String,
         value: Int,
         range: ClosedRange<Int>,
+        step: Int = 1,
+        valueText: @escaping (Int) -> String = { String($0) },
         onChange: @escaping (Int) -> Void
     ) -> some View {
-        SettingsRow {
+        let displayedValue = valueText(value)
+
+        return SettingsRow {
             SettingsControlLabel(
                 title: title,
                 detail: detail,
@@ -389,13 +373,13 @@ private struct NotchGlassSettingsView: View {
                         set: { onChange(Int($0.rounded())) }
                     ),
                     in: Double(range.lowerBound)...Double(range.upperBound),
-                    step: 1
+                    step: Double(step)
                 )
                 .frame(width: SettingsControlLayout.notchGlassSliderWidth)
                 .accessibilityLabel(title)
-                .accessibilityValue("\(value)")
+                .accessibilityValue(displayedValue)
 
-                Text("\(value)")
+                Text(displayedValue)
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(

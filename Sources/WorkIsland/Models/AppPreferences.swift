@@ -104,38 +104,39 @@ enum HeatmapTint: String, CaseIterable, Identifiable {
 }
 
 struct NotchGlassConfiguration: Equatable {
-    static let frostRange = 0...30
+    static let fixedFrost = 6
+    static let fixedBezelDepth = 0
     static let blurRange = 0...12
-    static let refractionRange = 0...250
-    static let bezelDepthRange = 2...40
+    static let refractiveIndexHundredthsRange = 100...300
 
     static let standard = NotchGlassConfiguration(
-        frost: 12,
         blur: 2,
-        refraction: 140,
-        bezelDepth: 14
+        refractiveIndexHundredths: 150
     )
 
-    let frost: Int
     let blur: Int
-    let refraction: Int
-    let bezelDepth: Int
+    let refractiveIndexHundredths: Int
+
+    var frost: Int {
+        Self.fixedFrost
+    }
+
+    var bezelDepth: Int {
+        Self.fixedBezelDepth
+    }
+
+    var refractiveIndex: Double {
+        Double(refractiveIndexHundredths) / 100
+    }
 
     init(
-        frost: Int,
         blur: Int,
-        refraction: Int,
-        bezelDepth: Int
+        refractiveIndexHundredths: Int
     ) {
-        self.frost = Self.normalized(frost, in: Self.frostRange)
         self.blur = Self.normalized(blur, in: Self.blurRange)
-        self.refraction = Self.normalized(
-            refraction,
-            in: Self.refractionRange
-        )
-        self.bezelDepth = Self.normalized(
-            bezelDepth,
-            in: Self.bezelDepthRange
+        self.refractiveIndexHundredths = Self.normalized(
+            refractiveIndexHundredths,
+            in: Self.refractiveIndexHundredthsRange
         )
     }
 
@@ -169,10 +170,9 @@ final class AppPreferences: ObservableObject {
         static let completionRevealMode = "completionRevealMode"
         static let showsCompactProgress = "showsCompactTimerProgress"
         static let appearance = "appearanceStyle"
-        static let notchGlassFrost = "notchGlassFrost"
         static let notchGlassBlur = "notchGlassBlur"
-        static let notchGlassRefraction = "notchGlassRefraction"
-        static let notchGlassBezelDepth = "notchGlassBezelDepth"
+        static let notchGlassRefractiveIndexHundredths =
+            "notchGlassRefractiveIndexHundredths"
     }
 
     @Published private(set) var isPrepared = false
@@ -190,20 +190,12 @@ final class AppPreferences: ObservableObject {
     @Published private(set) var notchGlassConfiguration: NotchGlassConfiguration {
         didSet {
             defaults.set(
-                notchGlassConfiguration.frost,
-                forKey: Key.notchGlassFrost
-            )
-            defaults.set(
                 notchGlassConfiguration.blur,
                 forKey: Key.notchGlassBlur
             )
             defaults.set(
-                notchGlassConfiguration.refraction,
-                forKey: Key.notchGlassRefraction
-            )
-            defaults.set(
-                notchGlassConfiguration.bezelDepth,
-                forKey: Key.notchGlassBezelDepth
+                notchGlassConfiguration.refractiveIndexHundredths,
+                forKey: Key.notchGlassRefractiveIndexHundredths
             )
         }
     }
@@ -324,16 +316,12 @@ final class AppPreferences: ObservableObject {
             rawValue: defaults.string(forKey: Key.appearance) ?? ""
         ) ?? .classic
         notchGlassConfiguration = NotchGlassConfiguration(
-            frost: defaults.object(forKey: Key.notchGlassFrost) as? Int
-                ?? NotchGlassConfiguration.standard.frost,
             blur: defaults.object(forKey: Key.notchGlassBlur) as? Int
                 ?? NotchGlassConfiguration.standard.blur,
-            refraction: defaults.object(
-                forKey: Key.notchGlassRefraction
-            ) as? Int ?? NotchGlassConfiguration.standard.refraction,
-            bezelDepth: defaults.object(
-                forKey: Key.notchGlassBezelDepth
-            ) as? Int ?? NotchGlassConfiguration.standard.bezelDepth
+            refractiveIndexHundredths: defaults.object(
+                forKey: Key.notchGlassRefractiveIndexHundredths
+            ) as? Int
+                ?? NotchGlassConfiguration.standard.refractiveIndexHundredths
         )
         notchOpenMode = NotchOpenMode(
             rawValue: defaults.string(forKey: Key.notchOpenMode) ?? ""
@@ -453,16 +441,13 @@ final class AppPreferences: ObservableObject {
     }
 
     func setNotchGlassConfiguration(
-        frost: Int? = nil,
         blur: Int? = nil,
-        refraction: Int? = nil,
-        bezelDepth: Int? = nil
+        refractiveIndexHundredths: Int? = nil
     ) {
         notchGlassConfiguration = NotchGlassConfiguration(
-            frost: frost ?? notchGlassConfiguration.frost,
             blur: blur ?? notchGlassConfiguration.blur,
-            refraction: refraction ?? notchGlassConfiguration.refraction,
-            bezelDepth: bezelDepth ?? notchGlassConfiguration.bezelDepth
+            refractiveIndexHundredths: refractiveIndexHundredths
+                ?? notchGlassConfiguration.refractiveIndexHundredths
         )
     }
 

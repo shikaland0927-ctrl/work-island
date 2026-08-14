@@ -177,20 +177,33 @@ final class AppPreferencesTests: XCTestCase {
         XCTAssertEqual(
             preferences.notchGlassConfiguration,
             NotchGlassConfiguration(
-                frost: 12,
                 blur: 2,
-                refraction: 140,
-                bezelDepth: 14
+                refractiveIndexHundredths: 150
             )
         )
-        XCTAssertEqual(NotchGlassConfiguration.frostRange, 0...30)
+        XCTAssertEqual(NotchGlassConfiguration.fixedFrost, 6)
+        XCTAssertEqual(NotchGlassConfiguration.fixedBezelDepth, 0)
         XCTAssertEqual(NotchGlassConfiguration.blurRange, 0...12)
-        XCTAssertEqual(NotchGlassConfiguration.refractionRange, 0...250)
-        XCTAssertEqual(NotchGlassConfiguration.bezelDepthRange, 2...40)
+        XCTAssertEqual(
+            NotchGlassConfiguration.refractiveIndexHundredthsRange,
+            100...300
+        )
+        XCTAssertEqual(preferences.notchGlassConfiguration.frost, 6)
+        XCTAssertEqual(preferences.notchGlassConfiguration.bezelDepth, 0)
+        XCTAssertEqual(
+            preferences.notchGlassConfiguration.refractiveIndex,
+            1.5,
+            accuracy: 0.000_001
+        )
         XCTAssertNil(defaults.object(forKey: "notchGlassFrost"))
         XCTAssertNil(defaults.object(forKey: "notchGlassBlur"))
         XCTAssertNil(defaults.object(forKey: "notchGlassRefraction"))
         XCTAssertNil(defaults.object(forKey: "notchGlassBezelDepth"))
+        XCTAssertNil(
+            defaults.object(
+                forKey: "notchGlassRefractiveIndexHundredths"
+            )
+        )
     }
 
     func testNotchGlassPreferencesNormalizePersistAndReset() throws {
@@ -198,37 +211,36 @@ final class AppPreferencesTests: XCTestCase {
         let preferences = AppPreferences(defaults: defaults)
 
         preferences.setNotchGlassConfiguration(
-            frost: -5,
             blur: 99,
-            refraction: -20,
-            bezelDepth: 99
+            refractiveIndexHundredths: 20
         )
 
         XCTAssertEqual(
             preferences.notchGlassConfiguration,
             NotchGlassConfiguration(
-                frost: 0,
                 blur: 12,
-                refraction: 0,
-                bezelDepth: 40
+                refractiveIndexHundredths: 100
             )
         )
 
         preferences.setNotchGlassConfiguration(
-            frost: 24,
             blur: 7,
-            refraction: 210,
-            bezelDepth: 28
+            refractiveIndexHundredths: 235
         )
 
         XCTAssertEqual(
             AppPreferences(defaults: defaults).notchGlassConfiguration,
             NotchGlassConfiguration(
-                frost: 24,
                 blur: 7,
-                refraction: 210,
-                bezelDepth: 28
+                refractiveIndexHundredths: 235
             )
+        )
+        XCTAssertEqual(defaults.integer(forKey: "notchGlassBlur"), 7)
+        XCTAssertEqual(
+            defaults.integer(
+                forKey: "notchGlassRefractiveIndexHundredths"
+            ),
+            235
         )
 
         preferences.resetNotchGlassConfiguration()
@@ -238,6 +250,23 @@ final class AppPreferencesTests: XCTestCase {
             AppPreferences(defaults: defaults).notchGlassConfiguration,
             .standard
         )
+    }
+
+    func testLegacyOpticalStrengthKeysDoNotMasqueradeAsRefractiveIndex() throws {
+        let defaults = try temporaryDefaults()
+        defaults.set(30, forKey: "notchGlassFrost")
+        defaults.set(250, forKey: "notchGlassRefraction")
+        defaults.set(40, forKey: "notchGlassBezelDepth")
+
+        let configuration = AppPreferences(defaults: defaults)
+            .notchGlassConfiguration
+
+        XCTAssertEqual(configuration.frost, 6)
+        XCTAssertEqual(configuration.bezelDepth, 0)
+        XCTAssertEqual(configuration.refractiveIndexHundredths, 150)
+        XCTAssertEqual(defaults.integer(forKey: "notchGlassFrost"), 30)
+        XCTAssertEqual(defaults.integer(forKey: "notchGlassRefraction"), 250)
+        XCTAssertEqual(defaults.integer(forKey: "notchGlassBezelDepth"), 40)
     }
 
     func testNotchGlassPreviewRequestsAreTransientAndRestartable() throws {

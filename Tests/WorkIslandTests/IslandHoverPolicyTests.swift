@@ -415,11 +415,6 @@ final class IslandHoverPolicyTests: XCTestCase {
             accuracy: 0.000_001
         )
         XCTAssertEqual(
-            IslandLiquidGlassStyle.shellBorderTintOpacity(for: configuration),
-            IslandLiquidGlassStyle.shellBorderTintOpacity,
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
             IslandLiquidGlassStyle.shellReflectionTintOpacity(
                 for: configuration
             ),
@@ -445,62 +440,27 @@ final class IslandHoverPolicyTests: XCTestCase {
             pow(2.0 / 12.0, 1.55),
             accuracy: 0.000_001
         )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.frostSheenOpacity(for: configuration),
-            0,
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.bezelLineWidth(for: configuration),
-            1,
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.refractionEdgeOpacity(for: configuration),
-            0.1232,
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.refractionBandWidth(for: configuration),
-            10.72,
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.refractionFaceOpacity(for: configuration),
-            0.0364,
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.extraBezelGlowOpacity(for: configuration),
-            0,
-            accuracy: 0.000_001
-        )
+        XCTAssertEqual(configuration.frost, 6)
+        XCTAssertEqual(configuration.bezelDepth, 0)
+        XCTAssertEqual(configuration.refractiveIndex, 1.5, accuracy: 0.000_001)
     }
 
     func testBlurUsesOneContinuousNativeGlassRamp() {
         let minimum = NotchGlassConfiguration(
-            frost: 0,
             blur: 0,
-            refraction: 0,
-            bezelDepth: 2
+            refractiveIndexHundredths: 150
         )
         let one = NotchGlassConfiguration(
-            frost: 0,
             blur: 1,
-            refraction: 0,
-            bezelDepth: 2
+            refractiveIndexHundredths: 150
         )
         let standard = NotchGlassConfiguration(
-            frost: 0,
             blur: 2,
-            refraction: 0,
-            bezelDepth: 2
+            refractiveIndexHundredths: 150
         )
         let maximum = NotchGlassConfiguration(
-            frost: 0,
             blur: 12,
-            refraction: 0,
-            bezelDepth: 2
+            refractiveIndexHundredths: 150
         )
 
         XCTAssertEqual(
@@ -550,18 +510,14 @@ final class IslandHoverPolicyTests: XCTestCase {
         )
     }
 
-    func testRefractionChangesOnlySymmetricLensComponents() {
+    func testRefractiveIndexChangesThePhysicalLensWithoutChangingBaseStyle() {
         let minimum = NotchGlassConfiguration(
-            frost: 0,
             blur: 0,
-            refraction: 0,
-            bezelDepth: 2
+            refractiveIndexHundredths: 100
         )
         let maximum = NotchGlassConfiguration(
-            frost: 0,
             blur: 0,
-            refraction: 250,
-            bezelDepth: 2
+            refractiveIndexHundredths: 300
         )
 
         XCTAssertEqual(
@@ -580,72 +536,149 @@ final class IslandHoverPolicyTests: XCTestCase {
             accuracy: 0.000_001
         )
         XCTAssertEqual(
-            IslandLiquidGlassStyle.shellBorderTintOpacity(for: maximum),
-            IslandLiquidGlassStyle.shellBorderTintOpacity(for: minimum),
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
             IslandLiquidGlassStyle.shellReflectionTintOpacity(for: maximum),
             IslandLiquidGlassStyle.shellReflectionTintOpacity(for: minimum),
             accuracy: 0.000_001
         )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.refractionEdgeOpacity(for: minimum),
-            0,
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.refractionEdgeOpacity(for: maximum),
-            0.22,
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.refractionFaceOpacity(for: maximum),
-            0.065,
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.refractionBandWidth(for: maximum),
-            16,
-            accuracy: 0.000_001
+
+        let neutralMagnitudes = IslandConvexSquircleLens
+            .displacementMagnitudes(refractiveIndex: minimum.refractiveIndex)
+        let standardMagnitudes = IslandConvexSquircleLens
+            .displacementMagnitudes(refractiveIndex: 1.5)
+        let strongestMagnitudes = IslandConvexSquircleLens
+            .displacementMagnitudes(refractiveIndex: maximum.refractiveIndex)
+
+        XCTAssertEqual(neutralMagnitudes.max(), 0)
+        XCTAssertGreaterThan(standardMagnitudes.max() ?? 0, 25)
+        XCTAssertGreaterThan(
+            strongestMagnitudes.max() ?? 0,
+            standardMagnitudes.max() ?? 0
         )
     }
 
-    func testFrostAndBezelRetainTheirEndpointMappings() {
-        let minimum = NotchGlassConfiguration(
-            frost: 0,
-            blur: 0,
-            refraction: 0,
-            bezelDepth: 2
+    func testConvexSquircleProfileAndDisplacementStaySymmetric() throws {
+        XCTAssertEqual(
+            IslandConvexSquircleLens.profileHeight(at: 0),
+            0,
+            accuracy: 0.000_001
         )
-        let maximum = NotchGlassConfiguration(
-            frost: 30,
-            blur: 12,
-            refraction: 250,
-            bezelDepth: 40
+        XCTAssertEqual(
+            IslandConvexSquircleLens.profileHeight(at: 1),
+            1,
+            accuracy: 0.000_001
+        )
+        XCTAssertGreaterThan(
+            IslandConvexSquircleLens.profileHeight(at: 0.5),
+            0.98
+        )
+
+        let size = CGSize(width: 500, height: 190)
+        let left = try XCTUnwrap(
+            IslandConvexSquircleLens.normalizedDisplacement(
+                at: CGPoint(x: 4, y: 80),
+                in: size,
+                cornerRadius: 25,
+                refractiveIndex: 1.5
+            )
+        )
+        let right = try XCTUnwrap(
+            IslandConvexSquircleLens.normalizedDisplacement(
+                at: CGPoint(x: 496, y: 80),
+                in: size,
+                cornerRadius: 25,
+                refractiveIndex: 1.5
+            )
+        )
+        let top = try XCTUnwrap(
+            IslandConvexSquircleLens.normalizedDisplacement(
+                at: CGPoint(x: 250, y: 4),
+                in: size,
+                cornerRadius: 25,
+                refractiveIndex: 1.5
+            )
+        )
+        let bottom = try XCTUnwrap(
+            IslandConvexSquircleLens.normalizedDisplacement(
+                at: CGPoint(x: 250, y: 186),
+                in: size,
+                cornerRadius: 25,
+                refractiveIndex: 1.5
+            )
         )
 
         XCTAssertEqual(
+            left.dx,
+            -right.dx,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(left.dy, 0, accuracy: 0.000_001)
+        XCTAssertEqual(right.dy, 0, accuracy: 0.000_001)
+        XCTAssertEqual(top.dx, 0, accuracy: 0.000_001)
+        XCTAssertEqual(bottom.dx, 0, accuracy: 0.000_001)
+        XCTAssertEqual(top.dy, -bottom.dy, accuracy: 0.000_001)
+        XCTAssertGreaterThan(left.dx, 0)
+        XCTAssertGreaterThan(top.dy, 0)
+        XCTAssertLessThan(bottom.dy, 0)
+        XCTAssertNil(
+            IslandConvexSquircleLens.normalizedDisplacement(
+                at: CGPoint(x: 250, y: 95),
+                in: size,
+                cornerRadius: 25,
+                refractiveIndex: 1.5
+            )
+        )
+    }
+
+    func testConvexSquircleMapUsesIndexOneAsNeutral() throws {
+        let size = CGSize(width: 500, height: 190)
+
+        XCTAssertNil(
+            IslandConvexSquircleLens.renderedMap(
+                size: size,
+                cornerRadius: 25,
+                refractiveIndex: 1
+            )
+        )
+
+        let map = try XCTUnwrap(
+            IslandConvexSquircleLens.renderedMap(
+                size: size,
+                cornerRadius: 25,
+                refractiveIndex: 1.5
+            )
+        )
+        XCTAssertEqual(map.image.extent.size, size)
+        XCTAssertGreaterThan(map.maximumDisplacement, 25)
+    }
+
+    func testFrostAndBezelAreFixedOutsideTheSettingsModel() {
+        let minimum = NotchGlassConfiguration(
+            blur: 0,
+            refractiveIndexHundredths: 100
+        )
+        let maximum = NotchGlassConfiguration(
+            blur: 12,
+            refractiveIndexHundredths: 300
+        )
+
+        XCTAssertEqual(minimum.frost, 6)
+        XCTAssertEqual(maximum.frost, 6)
+        XCTAssertEqual(minimum.bezelDepth, 0)
+        XCTAssertEqual(maximum.bezelDepth, 0)
+        XCTAssertEqual(
             IslandLiquidGlassStyle.shellBlackOpacity(for: minimum),
-            0,
+            0.06,
             accuracy: 0.000_001
         )
         XCTAssertEqual(
             IslandLiquidGlassStyle.shellBlackOpacity(for: maximum),
-            0.30,
+            0.06,
             accuracy: 0.000_001
         )
-        XCTAssertGreaterThan(
-            IslandLiquidGlassStyle.frostSheenOpacity(for: maximum),
-            0.10
-        )
-        XCTAssertGreaterThan(
-            IslandLiquidGlassStyle.bezelLineWidth(for: maximum),
-            IslandLiquidGlassStyle.bezelLineWidth(for: minimum)
-        )
-        XCTAssertGreaterThan(
-            IslandLiquidGlassStyle.extraBezelGlowOpacity(for: maximum),
-            0
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.shellBlackOpacity,
+            0.06,
+            accuracy: 0.000_001
         )
     }
 

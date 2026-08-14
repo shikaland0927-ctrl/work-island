@@ -56,7 +56,7 @@ Product principles that have been repeated often and must remain stable:
 - The collapsed notch is pure black with no border, accent, text, or chevron.
 - Appearance defaults to Classic. Liquid Glass changes only the expanded notch shell and controls; the collapsed notch remains exactly black.
 - In Liquid Glass, the expanded shell uses native glass with a reduced black tint, a vivid indigo cast, and lightweight vertically balanced reflection/rim layers so the underlying desktop reads through without washing out white content. Selected Activities use one high-saturation blue-indigo glass color; Start and Add use high-saturation green with high-contrast white labels. The lightweight control surfaces use less white overlay so these colors do not turn gray. Classic keeps its established Activity and action colors.
-- `Settings > Notch Glass` exposes persisted Frost `0–30`, Blur `0–12`, Refraction `0–250`, and Bezel Depth `2–40` sliders using the reference defaults `12 / 2 / 140 / 14`; Reset restores those values. The notch corner radius remains fixed and is not configurable. Blur uses one continuous rendering path across the whole range: the native glass opacity is approximately `0% / 2.1% / 6.2% / 100%` at `0 / 1 / 2 / 12`, and its auxiliary Material also fades continuously rather than switching material types at integer boundaries. Refraction no longer changes directional tint or reflection; it changes only a uniform low-opacity face and identical full-perimeter lens strokes, approximating the reference's centered displacement lens without a diagonal or one-sided wash. Frost and Bezel Depth retain their bounded sheen/rim mappings because SwiftUI's native Glass API does not expose arbitrary CSS-style lens-map values.
+- `Settings > Notch Glass` exposes only Blur `0–12` and Refraction `1.00–3.00` (step `0.05`), with defaults `2 / 1.50`; Reset restores those values. Frost is fixed internally at `6`, Bezel Depth at `0`, and the notch corner radius remains fixed. Blur retains one continuous low-end-weighted native-glass/Material path. Refraction is now the glass refractive index rather than a cosmetic intensity: a public macOS `CALayer.backgroundFilters` `CIDisplacementDistortion` bends the actual backdrop with an RG displacement map generated from the Convex Squircle profile `⁴√(1 − (1 − x)⁴)` and Snell's law from air `n=1`. Index `1.00` removes the displacement filter; higher indices increase real displacement symmetrically and orthogonally around the top, sides, bottom, and rounded lower corners. The former directional tint, perimeter lens strokes, variable frost sheen, and bezel glow are removed.
 - Opening Settings alone does not expand the notch. Moving any Notch Glass slider begins the live Liquid Glass preview; every subsequent slider movement issues a fresh preview revision so adjustment can reopen it after a pointer visit dismissed it. Leaving Settings or closing its view ends the request. Entering the notch once and then leaving it dismisses the current preview without changing the saved open mode; a completion alert remains authoritative if both states overlap.
 - A separate click-through dot appears immediately to its right only while active: green while running, orange while paused.
 - Activity name, optional Item, note, timer, and controls appear only while expanded.
@@ -124,7 +124,7 @@ History:
 Settings and onboarding:
 
 - General: Appearance, Launch at Login, Open Notch mode, Day Starts. Appearance is persisted only after the user changes it; an existing install remains Classic without gaining a new defaults key on launch.
-- Notch Glass: Frost, Blur, Refraction, and Bezel Depth apply only to the expanded Liquid Glass shell. Values update live, persist independently, normalize to the supported ranges, and do not gain defaults keys until the user adjusts or resets them.
+- Notch Glass: Blur and Refraction apply only to the expanded Liquid Glass shell, update live, normalize to their supported ranges, and do not gain defaults keys until the user adjusts or resets them. Refraction persists as integer hundredths under `notchGlassRefractiveIndexHundredths`; old Frost/Refraction/Bezel preference keys are deliberately left untouched but ignored because their former cosmetic scales have no safe physical conversion.
 - Timing: Alert, compact Progress, Manual Set As Start/End, and Pomodoro Focus/Break/Long/Sessions. All four use one shared trailing-aligned native `NSPopUpButton` subtree; the standard macOS bezels themselves fill the same 76-point columns with equal 10-point visible gaps.
 - Dashboard: optional Heatmap/Graph/Distribution visibility/order and Heatmap tint. Total and Stats are not configurable. Its three-row reorder list uses balanced top/bottom insets and a rounded outer shape.
 - First run asks only for one initial Activity and Launch at Login, then shows `Move your pointer to the notch.` once.
@@ -207,31 +207,30 @@ Last verified on 2026-08-14:
 
 Direct development channel:
 
-- Source `Info.plist`: version 0.11.23, build 75
+- Source `Info.plist`: version 0.11.24, build 76
 - Staging: `dist.noindex/Work Island.app`
 - Installed: `/Applications/Work Island.app`
 - Bundle ID: `local.shikazeriku.work-island`
-- Staging and installed executable SHA-256 matched: `3d5587dae517a50fb79ee121e39f49aa0b84eead6a127dc99e52237c5319770b`
+- Staging and installed executable SHA-256 matched: `cbf4ff70365ef81cb32a7f5b5f710a3a3fb4eba4ede9aa9153a0c85bcd9b4bf6`
 - Development bundle is ad-hoc signed, not a friend-beta release.
-- The replaced 0.11.22 build 74 bundle is preserved at `dist.previous.noindex/Work Island 0.11.22 (74)-before-0.11.23.app`; earlier preserved bundles remain under the same `.noindex` directory.
+- The replaced 0.11.23 build 75 bundle is preserved at `dist.previous.noindex/Work Island 0.11.23 (75)-before-0.11.24.app`; earlier preserved bundles remain under the same `.noindex` directory.
 
 Store channel:
 
-- Local target: version 1.0.0, build 59
+- Local target: version 1.0.0, build 60
 - Permanent bundle ID: `com.shikazeriku.workisland`
-- Latest local archive: `dist.appstore.noindex/Work Island 1.0.0 (59)-20260814-020732.xcarchive`
+- Latest local archive: `dist.appstore.noindex/Work Island 1.0.0 (60)-20260814-100116.xcarchive`
 - Archive is unsigned structural QA only, universal `x86_64 arm64`
-- Archived executable SHA-256: `29245ef2d19839007f08f51e030ffd7b2f3f50a64c085ef3f8c9980a1602e34d`
+- Archived executable SHA-256: `060535b2a5cfc1841c8ccdc118af558a6f79cb7973e0d8f35194cd756395310a`
 - It has not been Distribution-signed, exported, uploaded, assigned to testers, or selected for review.
 
 Verification baseline:
 
-- All 109 Swift tests passed for the 0.11.23 source, including transient/restartable slider preview requests, pointer-visit preview dismissal, completion-alert priority, the continuous low-end-weighted Blur curve at `0 / 1 / 2 / maximum`, Refraction-only symmetric lens mappings and invariant base optical constants, Frost/Bezel endpoints, Notch Glass defaults/ranges, normalization, persistence, Reset, Classic-default preference safety, unchanged card geometry, the permanently black collapsed notch, and the earlier timer/layout coverage.
+- All 112 Swift tests passed for the 0.11.24 source, including transient/restartable slider previews, the continuous Blur curve, fixed Frost `6`/Bezel `0`, new refractive-index normalization/persistence, refusal to reinterpret legacy cosmetic keys, Convex Squircle endpoints, Snell-law displacement growth, index-`1.00` neutrality, left/right and top/bottom vector symmetry, real displacement-map generation, Classic-default safety, the permanently black collapsed notch, and the earlier timer/layout coverage.
 - Direct Release, strict ad-hoc bundle verification, install parity, and unsigned universal Store archive checks passed.
 - Two full installed-app cold launches resolved to `/Applications/Work Island.app/Contents/MacOS/WorkIsland`; direct JSON and the complete preferences domain remained byte/semantically unchanged across installation and both launches.
-- The complete preferences domain semantically matched its pre-QA/pre-install export after both cold launches with no differing key; the normalized semantic SHA-256 was `76149e8ca90002df1ec337c085a85b967c9ff6d87a8797ac1ee7df179c43d055`. The user's Liquid Glass appearance and current Notch Glass values `0 / 0 / 0 / 2` remained unchanged. The schema-6 JSON remained byte-identical at SHA-256 `8b271e8b6886990ed3b6891e38470052910044535b96564f33b835bc4a17cc54`, with 3 Activities, 0 child Items, 34 records, and no ActiveWork.
-- Explicitly requested interactive QA for the current optical correction used bundle ID `local.shikazeriku.work-island.refractionqa.20260814`, an Info.plist `WorkIslandStoragePath` override, its own defaults domain, and an empty schema-6 fixture. The live reference generator was compared at Frost `0`, Blur `0`, Bezel `2`, and Refraction `0 / 250`; its Refraction is a centered SVG displacement lens rather than a directional tint. App renders at the same isolated endpoints confirmed that Refraction now produces a uniform face plus a balanced full-perimeter lens without the earlier diagonal split. Final Blur `0 / 1` renders were also compared over detailed background content: `1` is now only a slight softening from transparent `0`, with no identity/clear/regular material-type switch. This is rendered evidence, not a substitute for the user's physical slider acceptance on the installed build.
-- A five-second expanded-notch sample at all-maximum Notch Glass values used approximately 205–208 MB and ten CPU readings from 0.6% through 2.1%. This is useful evidence against the earlier severe-motion concern but not a substitute for physical slider/hover feedback on the installed build.
+- The complete preferences domain semantically matched its pre-QA/pre-install export after both cold launches with no differing key; the normalized semantic SHA-256 was `c45a29648589b7a00c9cdfa40b0718492c1806721fe8f848d5a1cbdf4e6ce213`. The user's Liquid Glass appearance and legacy optical preferences `Frost 6 / Blur 0 / Refraction 0 / Bezel 2` remained byte-for-byte untouched; the new refractive-index key remained absent, so source default `1.50` applies until the user changes or resets it. The schema-6 JSON remained byte-identical at SHA-256 `8b271e8b6886990ed3b6891e38470052910044535b96564f33b835bc4a17cc54`, with 3 Activities, 0 child Items, 34 records, and no ActiveWork.
+- Explicitly requested interactive QA used isolated bundle ID `local.shikazeriku.work-island.refraction-qa`, an Info.plist `WorkIslandStoragePath` override, and its own defaults domain. Settings rendered only Blur and Refraction, Refraction displayed `1.50`, and 29 consecutive accessibility increments reached `3.00` without a crash or stalled process. After settling, the Release QA process used 0.5% CPU and about 190 MB RSS. The generated map itself was verified at `500×190`, with about 30-point maximum displacement at index `1.50`; this does not replace the user's physical visual/slider acceptance on the installed notch.
 - Every non-installed Work Island staging, derived, and archive registration was removed after archive QA; two complete LaunchServices cleanup passes plus Spotlight found only `/Applications/Work Island.app`.
 - Treat this as a baseline only; rerun the relevant checks after source changes.
 
@@ -240,7 +239,7 @@ Verification baseline:
 These are not confirmed defects. They require the user's physical interaction and must not be checked off by Codex:
 
 1. Confirm the notch keeps its top-center anchor and expands/collapses symmetrically left and right.
-2. Open Settings while Liquid Glass is selected: confirm the notch stays closed until a Notch Glass slider moves, the first movement opens it, Blur `0 → 1 → 2` changes in small continuous steps while Blur `12` strongly blends the full face, and Refraction `0 → 250` stays balanced around the whole perimeter without a diagonal or one-sided wash when Frost and Blur are both `0`. Confirm leaving Settings closes the preview. Also confirm entering then leaving the preview dismisses it without changing the configured Hover/Click mode, and the next slider movement can open it again.
+2. Open Settings while Liquid Glass is selected: confirm only Blur and Refraction appear, the notch stays closed until either slider moves, and the first movement opens it. Confirm Blur `0 → 1 → 2` changes in small continuous steps while Blur `12` strongly blends the full face. With Blur `0`, compare Refraction `1.00 → 1.50 → 3.00`: `1.00` should leave the backdrop nearly undistorted, while higher indices should bend actual background details inward in a balanced Convex Squircle band without diagonal tint or neon strokes. Confirm leaving Settings closes the preview, entering then leaving the notch dismisses it, and the next slider movement reopens it.
 3. Switch Timer ↔ Pomodoro and confirm the visible clock does not move.
 4. Switch Timer ↔ Manual and confirm both duration controls have the same layout and behavior. In Manual, confirm Add has no Date, Time, or Set As popup.
 5. In Settings > Timing, confirm Focus, Break, Long, and Sessions retain the standard macOS selection bezel while using equal-width menus, equal visible gaps—including Long–Sessions—and right-aligned headings. Also confirm Set As defaults to End; optionally switch Start/End and add an intentional Manual record to verify its timestamp semantics.
@@ -252,7 +251,7 @@ These are not confirmed defects. They require the user's physical interaction an
 11. With Launch at Login enabled, perform a real logout/restart; before opening manually, confirm the notch is resident and opens.
 12. Confirm behavior on multiple displays if that scenario matters; there is no display preference yet.
 13. Let both Timer and Pomodoro reach zero and confirm the existing completion row appears to ring silently in short bursts while the Done button stays still. With Reduce Motion enabled in macOS, confirm the ringing stops.
-14. Physically confirm Liquid Glass now feels responsive and that the expanded notch shows a clean glass reflection/translucency over the user's real wallpaper while keeping white text readable. In Settings > Notch Glass, move Frost, Blur, Refraction, and Bezel Depth through low/high values and confirm each changes only the expanded Liquid shell, Reset returns to `12 / 2 / 140 / 14`, the corner radius never changes, and the values survive a full quit/relaunch. Also confirm selected Activities are a clear high-saturation blue-indigo, Start/Add are vivid green without gray haze, Activity cards have exactly the same perimeter/optical rim as Dashboard/History/Settings, Liquid selection pills move cleanly, Classic is visually unchanged, and the closed notch stays pure black.
+14. Physically confirm Liquid Glass feels responsive and the expanded notch shows clean refraction/translucency over the real wallpaper while white text stays readable. Confirm Reset returns Blur/Refraction to `2 / 1.50`, Frost visibly remains fixed at `6`, Bezel Depth at `0`, the corner radius never changes, and the two adjustable values survive a full quit/relaunch. Also confirm selected Activities remain high-saturation blue-indigo, Start/Add vivid green, Activity cards match Dashboard/History/Settings, Liquid selection pills move cleanly, Classic is visually unchanged, and the closed notch stays pure black.
 
 ## Release state and boundaries
 
@@ -266,7 +265,7 @@ App Store/TestFlight:
 
 - App Store Connect app record exists for Apple ID `6797406491` with permanent bundle ID `com.shikazeriku.workisland`.
 - Version 1.0.0 build 1 was uploaded and processed. Last observed TestFlight state was `Ready to Submit`; it was not assigned to testers, submitted to App Review, or released.
-- Local source is now build 59; never reuse upload build number 1.
+- Local source is now build 60; never reuse upload build number 1.
 - The user chose free distribution and excluded all 27 EU member states. Do not change legal/trader/storefront choices without asking.
 - Support and Privacy pages were published, and App Privacy was set to `Data Not Collected`. Verify live URLs and App Store Connect state before relying on this.
 - Existing screenshots predate the Activities rename and the move of Manual out of Dashboard; regenerate them before App Review.

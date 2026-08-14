@@ -87,9 +87,19 @@ A later Refraction approximation coupled the slider to directional tint,
 reflection, and an angular chromatic gradient. With Frost and Blur at zero this
 looked like a diagonal color wash rather than refraction. The reference instead
 changes the scale of a centered SVG displacement lens, so the visible change is
-substantially symmetric around the perimeter. The SwiftUI approximation now
-keeps base tint/reflection constants independent of Refraction and changes only
-a uniform face tint plus identical full-perimeter lens strokes.
+substantially symmetric around the perimeter. Replacing that wash with a
+uniform face tint and identical full-perimeter strokes fixed the asymmetry but
+still did not refract the backdrop: the control continued to change only color
+and edge decoration. Calling the old `0–250` cosmetic intensity “Refraction”
+also obscured the fact that the reference varies a physical refractive index.
+
+The current correction treats Refraction as index `1.00–3.00`, uses air `n=1`,
+derives normals from the reference's Convex Squircle profile, applies Snell's
+law, and feeds the resulting symmetric RG map to public macOS
+`CALayer.backgroundFilters` with `CIDisplacementDistortion`. Index `1.00`
+removes the filter entirely. Frost and Bezel Depth were removed from Settings
+and fixed at `6` and `0`. The new physical value uses a new defaults key rather
+than silently reinterpreting the incompatible old cosmetic scale.
 
 The first Blur correction still switched between identity, clear, regular, and
 several Material types at integer boundaries. Even when each mapping was
@@ -108,9 +118,14 @@ Prevention:
 - Inspect the reference's live generated style and script before translating a
   named control. For a true Blur `0`, remove the native glass/material layers
   rather than treating `Glass.clear` as zero blur.
-- Do not translate Refraction into directional color. When the native API does
-  not expose displacement scale, approximate it only with symmetric lens
-  components and keep unrelated base tint/reflection constants invariant.
+- Do not translate Refraction into color or decorative strokes. If the product
+  promises refraction on macOS, inspect Core Animation/Core Image as well as
+  SwiftUI: `CALayer.backgroundFilters` can filter the content immediately behind
+  a layer, and `CIDisplacementDistortion` accepts a real displacement map.
+- Treat a refractive-index control as a physical quantity. Keep index `1.00`
+  neutral, derive vectors orthogonally from the shape boundary, test mirrored
+  points and map generation, and use a new persistence key when an old cosmetic
+  scale has no truthful migration.
 - Never switch native glass or Material types between adjacent slider integers.
   Keep one rendering path and interpolate opacity/radius across the full range.
 - Unit-test endpoints and default invariants, but never claim those numeric tests
@@ -274,8 +289,8 @@ Prevention:
 - Keep the native glass surface outside periodic `TimelineView` content so one-second analytics/notch updates do not recreate it.
 - Render repeated notch chips and secondary buttons with lightweight tinted fills, borders, and one restrained shadow.
 - Avoid a full-window Material layer and duplicate glow shadows unless profiling shows they are justified.
-- SwiftUI's public native `Glass` surface exposes regular/clear/identity, tint, and interactivity—not arbitrary CSS-style Frost, Blur, Refraction, or Bezel Depth lens values. When offering those controls, keep the reference/default values numerically tied to the already accepted shell, use identity when a true zero-blur endpoint must remove native backdrop processing, map unsupported dimensions to bounded optical layers, and state the approximation accurately rather than implying a custom backdrop lens exists.
-- Keep every optional Material, blur, chromatic edge, and bezel glow conditional so the standard configuration does not silently add compositor work. Test that standard values reproduce the previous constants and that each slider changes only its intended optical dimension.
+- SwiftUI's public native `Glass` surface exposes regular/clear/identity, tint, and interactivity—not arbitrary CSS-style Frost, Blur, Refraction, or Bezel Depth values. Do not stop that API inventory at SwiftUI when the requirement is actual backdrop displacement: public macOS Core Animation background filters and Core Image distortion filters can supply the missing optical stage. Keep unsupported controls out of Settings instead of assigning them misleading decorative effects.
+- Build shape-dependent displacement maps off the main thread, coalesce rapid slider updates, cache/skip unchanged geometry, and remove the filter at its neutral endpoint. Keep the base tint/reflection independent so changing refractive index changes only refraction.
 - Verify both interaction feel and idle/active CPU with an isolated bundle before installing. A successful compile or geometry test does not prove compositor responsiveness.
 - Transparency alone does not create a rich glass look. Native glass derives much of its luminosity and color from the content behind it, so a small notch over a dark or uniform menu-bar background cannot match a high-key reference render automatically.
 - Compare regular and clear glass over the same realistic fixture before choosing. Clear can expose more background but also wash out dense white labels; prefer regular plus restrained local reflection when legibility wins.

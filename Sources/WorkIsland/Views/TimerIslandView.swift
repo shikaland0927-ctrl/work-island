@@ -1,4 +1,6 @@
 import AppKit
+import CoreImage
+import QuartzCore
 import SwiftUI
 
 final class IslandPresentationState: ObservableObject {
@@ -142,9 +144,8 @@ struct IslandAppearancePolicy {
 }
 
 struct IslandLiquidGlassStyle {
-    static let shellBlackOpacity = 0.12
+    static let shellBlackOpacity = 0.06
     static let shellTintOpacity = 0.14
-    static let shellBorderTintOpacity = 0.32
     static let shellReflectionTintOpacity = 0.14
     static let primaryActionTintOpacity = 0.70
     static let selectedActivityTintOpacity = 0.76
@@ -178,31 +179,10 @@ struct IslandLiquidGlassStyle {
         Double(configuration.frost) / 100
     }
 
-    static func frostSheenOpacity(
-        for configuration: NotchGlassConfiguration
-    ) -> Double {
-        let extraFrost = max(
-            0,
-            configuration.frost - NotchGlassConfiguration.standard.frost
-        )
-        let availableRange = max(
-            1,
-            NotchGlassConfiguration.frostRange.upperBound
-                - NotchGlassConfiguration.standard.frost
-        )
-        return Double(extraFrost) / Double(availableRange) * 0.12
-    }
-
     static func shellTintOpacity(
         for _: NotchGlassConfiguration
     ) -> Double {
         shellTintOpacity
-    }
-
-    static func shellBorderTintOpacity(
-        for _: NotchGlassConfiguration
-    ) -> Double {
-        shellBorderTintOpacity
     }
 
     static func shellReflectionTintOpacity(
@@ -235,76 +215,6 @@ struct IslandLiquidGlassStyle {
         nativeGlassOpacity(for: configuration)
     }
 
-    static func bezelLineWidth(
-        for configuration: NotchGlassConfiguration
-    ) -> CGFloat {
-        let standard = NotchGlassConfiguration.standard.bezelDepth
-        guard configuration.bezelDepth > standard else {
-            let ratio = Double(configuration.bezelDepth) / Double(standard)
-            return CGFloat(max(0.45, ratio))
-        }
-
-        let ratio = Double(configuration.bezelDepth - standard)
-            / Double(
-                NotchGlassConfiguration.bezelDepthRange.upperBound - standard
-            )
-        return CGFloat(1 + ratio * 2.2)
-    }
-
-    static func bezelHighlightOpacity(
-        for configuration: NotchGlassConfiguration
-    ) -> Double {
-        let ratio = Double(configuration.bezelDepth)
-            / Double(NotchGlassConfiguration.standard.bezelDepth)
-        return min(0.92, 0.56 * sqrt(ratio))
-    }
-
-    static func bezelSecondaryOpacity(
-        for configuration: NotchGlassConfiguration
-    ) -> Double {
-        let ratio = Double(configuration.bezelDepth)
-            / Double(NotchGlassConfiguration.standard.bezelDepth)
-        return min(0.42, 0.14 * sqrt(ratio))
-    }
-
-    static func extraBezelGlowOpacity(
-        for configuration: NotchGlassConfiguration
-    ) -> Double {
-        let extraDepth = max(
-            0,
-            configuration.bezelDepth
-                - NotchGlassConfiguration.standard.bezelDepth
-        )
-        let availableRange = max(
-            1,
-            NotchGlassConfiguration.bezelDepthRange.upperBound
-                - NotchGlassConfiguration.standard.bezelDepth
-        )
-        return Double(extraDepth) / Double(availableRange) * 0.38
-    }
-
-    static func refractionEdgeOpacity(
-        for configuration: NotchGlassConfiguration
-    ) -> Double {
-        refractionProgress(for: configuration) * 0.22
-    }
-
-    static func refractionFaceOpacity(
-        for configuration: NotchGlassConfiguration
-    ) -> Double {
-        refractionProgress(for: configuration) * 0.065
-    }
-
-    static func refractionBandWidth(
-        for configuration: NotchGlassConfiguration
-    ) -> CGFloat {
-        let progress = refractionProgress(for: configuration)
-        guard progress > 0 else {
-            return 0
-        }
-        return CGFloat(4 + progress * 12)
-    }
-
     static func fallbackBlackOpacity(
         for configuration: NotchGlassConfiguration
     ) -> Double {
@@ -315,18 +225,499 @@ struct IslandLiquidGlassStyle {
         )
     }
 
-    private static func refractionProgress(
-        for configuration: NotchGlassConfiguration
-    ) -> Double {
-        Double(configuration.refraction)
-            / Double(NotchGlassConfiguration.refractionRange.upperBound)
-    }
-
     private static func blurProgress(
         for configuration: NotchGlassConfiguration
     ) -> Double {
         Double(configuration.blur)
             / Double(NotchGlassConfiguration.blurRange.upperBound)
+    }
+}
+
+struct IslandConvexSquircleLens {
+    static let bandWidth: CGFloat = 30
+    static let glassThickness: CGFloat = 18
+    static let sampleCount = 192
+
+    struct RenderedMap {
+        let image: CIImage
+        let maximumDisplacement: CGFloat
+    }
+
+    static func profileHeight(at progress: Double) -> Double {
+        let x = min(1, max(0, progress))
+        return pow(max(0, 1 - pow(1 - x, 4)), 0.25)
+    }
+
+    static func displacementMagnitudes(
+        refractiveIndex: Double,
+        bandWidth: CGFloat = bandWidth,
+        glassThickness: CGFloat = glassThickness,
+        sampleCount: Int = sampleCount
+    ) -> [Double] {
+        let count = max(2, sampleCount)
+        guard refractiveIndex > 1.000_001 else {
+            return Array(repeating: 0, count: count)
+        }
+
+        let eta = 1 / refractiveIndex
+        return (0..<count).map { index in
+            let progress = Double(index) / Double(count - 1)
+            let height = profileHeight(at: progress)
+            let delta = progress < 1 ? 0.000_1 : -0.000_1
+            let derivative = (
+                profileHeight(at: progress + delta) - height
+            ) / delta
+            let normalLength = hypot(derivative, 1)
+            let normalX = -derivative / normalLength
+            let normalY = -1 / normalLength
+            let normalDotIncident = normalY
+            let refractionTerm = 1 - eta * eta
+                * (1 - normalDotIncident * normalDotIncident)
+
+            guard refractionTerm >= 0 else {
+                return 0
+            }
+
+            let factor = eta * normalDotIncident
+                + sqrt(refractionTerm)
+            let refractedX = -factor * normalX
+            let refractedY = eta - factor * normalY
+            guard abs(refractedY) > 0.000_001 else {
+                return 0
+            }
+
+            let depth = height * Double(bandWidth)
+                + Double(glassThickness)
+            return max(0, refractedX * depth / refractedY)
+        }
+    }
+
+    static func normalizedDisplacement(
+        at point: CGPoint,
+        in size: CGSize,
+        cornerRadius: CGFloat,
+        refractiveIndex: Double,
+        bandWidth requestedBandWidth: CGFloat = bandWidth
+    ) -> CGVector? {
+        let effectiveBandWidth = min(
+            requestedBandWidth,
+            min(size.width, size.height) / 2
+        )
+        guard effectiveBandWidth > 0,
+              let boundary = boundarySample(
+                  at: point,
+                  in: size,
+                  cornerRadius: cornerRadius
+              ),
+              boundary.distance <= effectiveBandWidth else {
+            return nil
+        }
+
+        let magnitudes = displacementMagnitudes(
+            refractiveIndex: refractiveIndex,
+            bandWidth: effectiveBandWidth
+        )
+        let maximum = magnitudes.max() ?? 0
+        guard maximum > 0.000_001 else {
+            return .zero
+        }
+
+        let progress = boundary.distance / effectiveBandWidth
+        let magnitude = interpolatedMagnitude(
+            at: Double(progress),
+            in: magnitudes
+        ) / maximum
+        return CGVector(
+            dx: boundary.inwardNormal.dx * magnitude,
+            dy: boundary.inwardNormal.dy * magnitude
+        )
+    }
+
+    static func renderedMap(
+        size: CGSize,
+        cornerRadius: CGFloat,
+        refractiveIndex: Double
+    ) -> RenderedMap? {
+        let width = max(1, Int(size.width.rounded(.up)))
+        let height = max(1, Int(size.height.rounded(.up)))
+        let renderedSize = CGSize(width: width, height: height)
+        let effectiveBandWidth = min(
+            bandWidth,
+            min(renderedSize.width, renderedSize.height) / 2
+        )
+        let magnitudes = displacementMagnitudes(
+            refractiveIndex: refractiveIndex,
+            bandWidth: effectiveBandWidth
+        )
+        let maximum = magnitudes.max() ?? 0
+        guard maximum > 0.000_001 else {
+            return nil
+        }
+
+        var bitmap = Data(count: width * height * 4)
+        bitmap.withUnsafeMutableBytes { rawBuffer in
+            let pixels = rawBuffer.bindMemory(to: UInt8.self)
+            for row in 0..<height {
+                for column in 0..<width {
+                    let offset = (row * width + column) * 4
+                    pixels[offset] = 128
+                    pixels[offset + 1] = 128
+                    pixels[offset + 2] = 0
+                    pixels[offset + 3] = 255
+
+                    // CIImage bitmap rows start at the lower edge. Convert to
+                    // SwiftUI's top-origin geometry before sampling the notch.
+                    let point = CGPoint(
+                        x: CGFloat(column) + 0.5,
+                        y: renderedSize.height - CGFloat(row) - 0.5
+                    )
+                    guard let boundary = boundarySample(
+                        at: point,
+                        in: renderedSize,
+                        cornerRadius: cornerRadius
+                    ), boundary.distance <= effectiveBandWidth else {
+                        continue
+                    }
+
+                    let progress = boundary.distance / effectiveBandWidth
+                    let magnitude = interpolatedMagnitude(
+                        at: Double(progress),
+                        in: magnitudes
+                    ) / maximum
+                    let horizontal = boundary.inwardNormal.dx * magnitude
+                    let vertical = -boundary.inwardNormal.dy * magnitude
+                    pixels[offset] = displacementComponent(horizontal)
+                    pixels[offset + 1] = displacementComponent(vertical)
+                }
+            }
+        }
+
+        let image = CIImage(
+            bitmapData: bitmap,
+            bytesPerRow: width * 4,
+            size: renderedSize,
+            format: .RGBA8,
+            colorSpace: CGColorSpaceCreateDeviceRGB()
+        )
+        return RenderedMap(
+            image: image,
+            maximumDisplacement: CGFloat(maximum)
+        )
+    }
+
+    private struct BoundarySample {
+        let distance: CGFloat
+        let inwardNormal: CGVector
+    }
+
+    private static func boundarySample(
+        at point: CGPoint,
+        in size: CGSize,
+        cornerRadius: CGFloat
+    ) -> BoundarySample? {
+        guard size.width > 0,
+              size.height > 0,
+              point.x >= 0,
+              point.x <= size.width,
+              point.y >= 0,
+              point.y <= size.height else {
+            return nil
+        }
+
+        let radius = min(
+            max(0, cornerRadius),
+            min(size.width, size.height) / 2
+        )
+        let cornerCenterY = size.height - radius
+
+        if radius > 0, point.y > cornerCenterY {
+            if point.x < radius {
+                let distanceToCenter = hypot(
+                    point.x - radius,
+                    point.y - cornerCenterY
+                )
+                guard distanceToCenter <= radius else {
+                    return nil
+                }
+            } else if point.x > size.width - radius {
+                let distanceToCenter = hypot(
+                    point.x - (size.width - radius),
+                    point.y - cornerCenterY
+                )
+                guard distanceToCenter <= radius else {
+                    return nil
+                }
+            }
+        }
+
+        var candidates = [BoundarySample(
+            distance: point.y,
+            inwardNormal: CGVector(dx: 0, dy: 1)
+        )]
+
+        if radius == 0 || point.y <= cornerCenterY {
+            candidates.append(
+                BoundarySample(
+                    distance: point.x,
+                    inwardNormal: CGVector(dx: 1, dy: 0)
+                )
+            )
+            candidates.append(
+                BoundarySample(
+                    distance: size.width - point.x,
+                    inwardNormal: CGVector(dx: -1, dy: 0)
+                )
+            )
+        }
+
+        if radius == 0 || (point.x >= radius
+            && point.x <= size.width - radius) {
+            candidates.append(
+                BoundarySample(
+                    distance: size.height - point.y,
+                    inwardNormal: CGVector(dx: 0, dy: -1)
+                )
+            )
+        }
+
+        if radius > 0, point.y >= cornerCenterY {
+            if point.x <= radius {
+                appendCornerSample(
+                    point: point,
+                    center: CGPoint(x: radius, y: cornerCenterY),
+                    radius: radius,
+                    to: &candidates
+                )
+            }
+            if point.x >= size.width - radius {
+                appendCornerSample(
+                    point: point,
+                    center: CGPoint(
+                        x: size.width - radius,
+                        y: cornerCenterY
+                    ),
+                    radius: radius,
+                    to: &candidates
+                )
+            }
+        }
+
+        return candidates.min { $0.distance < $1.distance }
+    }
+
+    private static func appendCornerSample(
+        point: CGPoint,
+        center: CGPoint,
+        radius: CGFloat,
+        to candidates: inout [BoundarySample]
+    ) {
+        let horizontal = point.x - center.x
+        let vertical = point.y - center.y
+        let radialDistance = hypot(horizontal, vertical)
+        guard radialDistance > 0, radialDistance <= radius else {
+            return
+        }
+
+        candidates.append(
+            BoundarySample(
+                distance: radius - radialDistance,
+                inwardNormal: CGVector(
+                    dx: -horizontal / radialDistance,
+                    dy: -vertical / radialDistance
+                )
+            )
+        )
+    }
+
+    private static func interpolatedMagnitude(
+        at progress: Double,
+        in magnitudes: [Double]
+    ) -> Double {
+        guard !magnitudes.isEmpty else {
+            return 0
+        }
+        let position = min(1, max(0, progress))
+            * Double(magnitudes.count - 1)
+        let lowerIndex = Int(position.rounded(.down))
+        let upperIndex = min(magnitudes.count - 1, lowerIndex + 1)
+        guard lowerIndex != upperIndex else {
+            return magnitudes[lowerIndex]
+        }
+        let fraction = position - Double(lowerIndex)
+        return magnitudes[lowerIndex] * (1 - fraction)
+            + magnitudes[upperIndex] * fraction
+    }
+
+    private static func displacementComponent(_ value: CGFloat) -> UInt8 {
+        let clamped = min(1, max(-1, value))
+        return UInt8(clamping: Int((128 + clamped * 127).rounded()))
+    }
+}
+
+private struct IslandConvexSquircleRefractionView: NSViewRepresentable {
+    let refractiveIndex: Double
+    let cornerRadius: CGFloat
+
+    func makeNSView(context: Context) -> IslandRefractionLayerView {
+        let view = IslandRefractionLayerView()
+        view.configure(
+            refractiveIndex: refractiveIndex,
+            cornerRadius: cornerRadius
+        )
+        return view
+    }
+
+    func updateNSView(
+        _ nsView: IslandRefractionLayerView,
+        context: Context
+    ) {
+        nsView.configure(
+            refractiveIndex: refractiveIndex,
+            cornerRadius: cornerRadius
+        )
+    }
+}
+
+private final class IslandRefractionLayerView: NSView {
+    private struct RenderKey: Equatable {
+        let width: Int
+        let height: Int
+        let cornerRadiusTenths: Int
+        let refractiveIndexThousandths: Int
+    }
+
+    private static let renderQueue = DispatchQueue(
+        label: "WorkIsland.ConvexSquircleRefraction",
+        qos: .userInteractive
+    )
+
+    private var refractiveIndex = 1.5
+    private var cornerRadius: CGFloat = 25
+    private var appliedKey: RenderKey?
+    private var scheduledKey: RenderKey?
+    private var pendingWorkItem: DispatchWorkItem?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        prepareLayer()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        prepareLayer()
+    }
+
+    deinit {
+        pendingWorkItem?.cancel()
+    }
+
+    override func layout() {
+        super.layout()
+        scheduleRenderIfNeeded()
+    }
+
+    func configure(
+        refractiveIndex: Double,
+        cornerRadius: CGFloat
+    ) {
+        guard self.refractiveIndex != refractiveIndex
+                || self.cornerRadius != cornerRadius else {
+            scheduleRenderIfNeeded()
+            return
+        }
+        self.refractiveIndex = refractiveIndex
+        self.cornerRadius = cornerRadius
+        scheduleRenderIfNeeded()
+    }
+
+    private func prepareLayer() {
+        wantsLayer = true
+        layerUsesCoreImageFilters = true
+        layer?.backgroundColor = NSColor.clear.cgColor
+        layer?.masksToBounds = true
+        layer?.needsDisplayOnBoundsChange = true
+    }
+
+    private func renderKey() -> RenderKey? {
+        let width = Int(bounds.width.rounded(.up))
+        let height = Int(bounds.height.rounded(.up))
+        guard width > 0, height > 0 else {
+            return nil
+        }
+        return RenderKey(
+            width: width,
+            height: height,
+            cornerRadiusTenths: Int((cornerRadius * 10).rounded()),
+            refractiveIndexThousandths: Int(
+                (refractiveIndex * 1_000).rounded()
+            )
+        )
+    }
+
+    private func scheduleRenderIfNeeded() {
+        guard let key = renderKey(),
+              key != appliedKey,
+              key != scheduledKey else {
+            return
+        }
+
+        pendingWorkItem?.cancel()
+        scheduledKey = key
+
+        guard refractiveIndex > 1.000_001 else {
+            apply(renderedMap: nil, for: key)
+            return
+        }
+
+        let size = CGSize(width: key.width, height: key.height)
+        let radius = CGFloat(key.cornerRadiusTenths) / 10
+        let index = Double(key.refractiveIndexThousandths) / 1_000
+        let workItem = DispatchWorkItem { [weak self] in
+            let renderedMap = IslandConvexSquircleLens.renderedMap(
+                size: size,
+                cornerRadius: radius,
+                refractiveIndex: index
+            )
+            DispatchQueue.main.async { [weak self] in
+                self?.apply(renderedMap: renderedMap, for: key)
+            }
+        }
+        pendingWorkItem = workItem
+        Self.renderQueue.asyncAfter(
+            deadline: .now() + 0.035,
+            execute: workItem
+        )
+    }
+
+    private func apply(
+        renderedMap: IslandConvexSquircleLens.RenderedMap?,
+        for key: RenderKey
+    ) {
+        guard scheduledKey == key, renderKey() == key else {
+            return
+        }
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        if let renderedMap,
+           let filter = CIFilter(name: "CIDisplacementDistortion") {
+            filter.setValue(
+                renderedMap.image,
+                forKey: "inputDisplacementImage"
+            )
+            filter.setValue(
+                renderedMap.maximumDisplacement,
+                forKey: "inputScale"
+            )
+            layer?.backgroundFilters = [filter]
+        } else {
+            layer?.backgroundFilters = nil
+        }
+        CATransaction.commit()
+
+        appliedKey = key
+        scheduledKey = nil
+        pendingWorkItem = nil
     }
 }
 
@@ -357,12 +748,10 @@ private struct IslandNotchBackground: View {
                         additionalBlurLayer(shape: shape)
                     }
                     .background { nativeGlassLayer(shape: shape) }
-                    .overlay { liquidRefractionFace(shape: shape) }
-                    .overlay { liquidFrostSheen(shape: shape) }
+                    .overlay {
+                        liquidConvexSquircleRefraction(shape: shape)
+                    }
                     .overlay { liquidReflection(shape: shape) }
-                    .overlay { liquidRefractionLens(shape: shape) }
-                    .overlay { liquidBezelGlow(shape: shape) }
-                    .overlay { liquidBorder(shape: shape) }
             } else {
                 shape
                     .fill(Color.clear)
@@ -381,83 +770,25 @@ private struct IslandNotchBackground: View {
                             )
                         )
                     }
-                    .overlay { liquidRefractionFace(shape: shape) }
-                    .overlay { liquidFrostSheen(shape: shape) }
+                    .overlay {
+                        liquidConvexSquircleRefraction(shape: shape)
+                    }
                     .overlay { liquidReflection(shape: shape) }
-                    .overlay { liquidRefractionLens(shape: shape) }
-                    .overlay { liquidBezelGlow(shape: shape) }
-                    .overlay { liquidBorder(shape: shape) }
             }
         } else {
             shape.fill(Color.black)
         }
     }
 
-    private func liquidBorder(shape: NotchShape) -> some View {
-        shape.stroke(
-            LinearGradient(
-                colors: [
-                    Color.white.opacity(
-                        IslandLiquidGlassStyle.bezelHighlightOpacity(
-                            for: configuration
-                        )
-                    ),
-                    Color.white.opacity(
-                        IslandLiquidGlassStyle.bezelSecondaryOpacity(
-                            for: configuration
-                        )
-                    ),
-                    IslandLiquidGlassStyle.selectedActivityTint.opacity(
-                        IslandLiquidGlassStyle.shellBorderTintOpacity(
-                            for: configuration
-                        )
-                    )
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            ),
-            lineWidth: IslandLiquidGlassStyle.bezelLineWidth(
-                for: configuration
-            )
+    private func liquidConvexSquircleRefraction(
+        shape: NotchShape
+    ) -> some View {
+        IslandConvexSquircleRefractionView(
+            refractiveIndex: configuration.refractiveIndex,
+            cornerRadius: shape.cornerRadius
         )
-    }
-
-    @ViewBuilder
-    private func liquidRefractionFace(shape: NotchShape) -> some View {
-        let opacity = IslandLiquidGlassStyle.refractionFaceOpacity(
-            for: configuration
-        )
-        if opacity > 0 {
-            shape
-                .fill(
-                    IslandLiquidGlassStyle.selectedActivityTint.opacity(
-                        opacity
-                    )
-                )
-                .blendMode(.screen)
-        }
-    }
-
-    @ViewBuilder
-    private func liquidFrostSheen(shape: NotchShape) -> some View {
-        let opacity = IslandLiquidGlassStyle.frostSheenOpacity(
-            for: configuration
-        )
-        if opacity > 0 {
-            shape
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(opacity * 0.78),
-                            Color.white.opacity(opacity * 0.58),
-                            Color.white.opacity(opacity * 0.72)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .blendMode(.screen)
-        }
+        .clipShape(shape)
+        .allowsHitTesting(false)
     }
 
     @ViewBuilder
@@ -541,59 +872,6 @@ private struct IslandNotchBackground: View {
         }
     }
 
-    @ViewBuilder
-    private func liquidRefractionLens(shape: NotchShape) -> some View {
-        let opacity = IslandLiquidGlassStyle.refractionEdgeOpacity(
-            for: configuration
-        )
-        if opacity > 0 {
-            let width = IslandLiquidGlassStyle.refractionBandWidth(
-                for: configuration
-            )
-            ZStack {
-                shape
-                    .stroke(
-                        Color.cyan.opacity(opacity * 0.36),
-                        lineWidth: width + 4
-                    )
-                    .blur(radius: 2.2)
-                shape
-                    .stroke(
-                        IslandLiquidGlassStyle.selectedActivityTint.opacity(
-                            opacity
-                        ),
-                        lineWidth: width
-                    )
-                    .blur(radius: 0.7)
-                shape
-                    .stroke(
-                        Color.white.opacity(opacity * 0.32),
-                        lineWidth: 1
-                    )
-            }
-                .mask(shape)
-                .blendMode(.screen)
-        }
-    }
-
-    @ViewBuilder
-    private func liquidBezelGlow(shape: NotchShape) -> some View {
-        let opacity = IslandLiquidGlassStyle.extraBezelGlowOpacity(
-            for: configuration
-        )
-        if opacity > 0 {
-            shape
-                .stroke(
-                    Color.white.opacity(opacity),
-                    lineWidth: IslandLiquidGlassStyle.bezelLineWidth(
-                        for: configuration
-                    ) + 3
-                )
-                .blur(radius: 1.8)
-                .mask(shape)
-                .blendMode(.screen)
-        }
-    }
 }
 
 struct TimerIslandView: View {
