@@ -1,6 +1,5 @@
 import AppKit
 import CoreImage
-import QuartzCore
 import SwiftUI
 
 final class IslandPresentationState: ObservableObject {
@@ -209,6 +208,24 @@ struct IslandLiquidGlassStyle {
         CGFloat(blurProgress(for: configuration) * 2.8)
     }
 
+    static func nativeRefractionOpacity(
+        for configuration: NotchGlassConfiguration
+    ) -> Double {
+        let maximum = Double(
+            NotchGlassConfiguration.refractiveIndexHundredthsRange.upperBound
+        ) / 100
+        let reflectance = interfaceReflectance(
+            refractiveIndex: configuration.refractiveIndex
+        )
+        let maximumReflectance = interfaceReflectance(
+            refractiveIndex: maximum
+        )
+        guard maximumReflectance > 0 else {
+            return 0
+        }
+        return 0.45 * sqrt(reflectance / maximumReflectance)
+    }
+
     static func fallbackBaseMaterialOpacity(
         for configuration: NotchGlassConfiguration
     ) -> Double {
@@ -231,8 +248,21 @@ struct IslandLiquidGlassStyle {
         Double(configuration.blur)
             / Double(NotchGlassConfiguration.blurRange.upperBound)
     }
+
+    private static func interfaceReflectance(
+        refractiveIndex: Double
+    ) -> Double {
+        guard refractiveIndex > 1 else {
+            return 0
+        }
+        let ratio = (refractiveIndex - 1) / (refractiveIndex + 1)
+        return ratio * ratio
+    }
 }
 
+/// A geometry reference for the requested Convex Squircle profile. The public
+/// native glass API owns backdrop sampling and doesn't accept this map as an
+/// input; production rendering scales the native clear-glass optical surface.
 struct IslandConvexSquircleLens {
     static let bandWidth: CGFloat = 30
     static let glassThickness: CGFloat = 18
@@ -554,174 +584,23 @@ struct IslandConvexSquircleLens {
     }
 }
 
-private struct IslandConvexSquircleRefractionView: NSViewRepresentable {
-    let refractiveIndex: Double
-    let cornerRadius: CGFloat
-
-    func makeNSView(context: Context) -> IslandRefractionLayerView {
-        let view = IslandRefractionLayerView()
-        view.configure(
-            refractiveIndex: refractiveIndex,
-            cornerRadius: cornerRadius
-        )
-        return view
+private struct IslandFallbackRefractionView: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let material = NSVisualEffectView()
+        material.blendingMode = .behindWindow
+        material.material = .underWindowBackground
+        material.state = .active
+        return material
     }
 
     func updateNSView(
-        _ nsView: IslandRefractionLayerView,
+        _ nsView: NSVisualEffectView,
         context: Context
     ) {
-        nsView.configure(
-            refractiveIndex: refractiveIndex,
-            cornerRadius: cornerRadius
-        )
     }
 }
 
-private final class IslandRefractionLayerView: NSView {
-    private struct RenderKey: Equatable {
-        let width: Int
-        let height: Int
-        let cornerRadiusTenths: Int
-        let refractiveIndexThousandths: Int
-    }
-
-    private static let renderQueue = DispatchQueue(
-        label: "WorkIsland.ConvexSquircleRefraction",
-        qos: .userInteractive
-    )
-
-    private var refractiveIndex = 1.5
-    private var cornerRadius: CGFloat = 25
-    private var appliedKey: RenderKey?
-    private var scheduledKey: RenderKey?
-    private var pendingWorkItem: DispatchWorkItem?
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        prepareLayer()
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        prepareLayer()
-    }
-
-    deinit {
-        pendingWorkItem?.cancel()
-    }
-
-    override func layout() {
-        super.layout()
-        scheduleRenderIfNeeded()
-    }
-
-    func configure(
-        refractiveIndex: Double,
-        cornerRadius: CGFloat
-    ) {
-        guard self.refractiveIndex != refractiveIndex
-                || self.cornerRadius != cornerRadius else {
-            scheduleRenderIfNeeded()
-            return
-        }
-        self.refractiveIndex = refractiveIndex
-        self.cornerRadius = cornerRadius
-        scheduleRenderIfNeeded()
-    }
-
-    private func prepareLayer() {
-        wantsLayer = true
-        layerUsesCoreImageFilters = true
-        layer?.backgroundColor = NSColor.clear.cgColor
-        layer?.masksToBounds = true
-        layer?.needsDisplayOnBoundsChange = true
-    }
-
-    private func renderKey() -> RenderKey? {
-        let width = Int(bounds.width.rounded(.up))
-        let height = Int(bounds.height.rounded(.up))
-        guard width > 0, height > 0 else {
-            return nil
-        }
-        return RenderKey(
-            width: width,
-            height: height,
-            cornerRadiusTenths: Int((cornerRadius * 10).rounded()),
-            refractiveIndexThousandths: Int(
-                (refractiveIndex * 1_000).rounded()
-            )
-        )
-    }
-
-    private func scheduleRenderIfNeeded() {
-        guard let key = renderKey(),
-              key != appliedKey,
-              key != scheduledKey else {
-            return
-        }
-
-        pendingWorkItem?.cancel()
-        scheduledKey = key
-
-        guard refractiveIndex > 1.000_001 else {
-            apply(renderedMap: nil, for: key)
-            return
-        }
-
-        let size = CGSize(width: key.width, height: key.height)
-        let radius = CGFloat(key.cornerRadiusTenths) / 10
-        let index = Double(key.refractiveIndexThousandths) / 1_000
-        let workItem = DispatchWorkItem { [weak self] in
-            let renderedMap = IslandConvexSquircleLens.renderedMap(
-                size: size,
-                cornerRadius: radius,
-                refractiveIndex: index
-            )
-            DispatchQueue.main.async { [weak self] in
-                self?.apply(renderedMap: renderedMap, for: key)
-            }
-        }
-        pendingWorkItem = workItem
-        Self.renderQueue.asyncAfter(
-            deadline: .now() + 0.035,
-            execute: workItem
-        )
-    }
-
-    private func apply(
-        renderedMap: IslandConvexSquircleLens.RenderedMap?,
-        for key: RenderKey
-    ) {
-        guard scheduledKey == key, renderKey() == key else {
-            return
-        }
-
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        if let renderedMap,
-           let filter = CIFilter(name: "CIDisplacementDistortion") {
-            filter.setValue(
-                renderedMap.image,
-                forKey: "inputDisplacementImage"
-            )
-            filter.setValue(
-                renderedMap.maximumDisplacement,
-                forKey: "inputScale"
-            )
-            layer?.backgroundFilters = [filter]
-        } else {
-            layer?.backgroundFilters = nil
-        }
-        CATransaction.commit()
-
-        appliedKey = key
-        scheduledKey = nil
-        pendingWorkItem = nil
-    }
-}
-
-private struct IslandNotchBackground: View {
+struct IslandNotchBackground: View {
     let isExpanded: Bool
     let appearance: WorkIslandAppearance
     let configuration: NotchGlassConfiguration
@@ -749,7 +628,7 @@ private struct IslandNotchBackground: View {
                     }
                     .background { nativeGlassLayer(shape: shape) }
                     .overlay {
-                        liquidConvexSquircleRefraction(shape: shape)
+                        liquidNativeRefraction(shape: shape)
                     }
                     .overlay { liquidReflection(shape: shape) }
             } else {
@@ -771,7 +650,7 @@ private struct IslandNotchBackground: View {
                         )
                     }
                     .overlay {
-                        liquidConvexSquircleRefraction(shape: shape)
+                        liquidNativeRefraction(shape: shape)
                     }
                     .overlay { liquidReflection(shape: shape) }
             }
@@ -780,12 +659,22 @@ private struct IslandNotchBackground: View {
         }
     }
 
-    private func liquidConvexSquircleRefraction(
+    private func liquidNativeRefraction(
         shape: NotchShape
     ) -> some View {
-        IslandConvexSquircleRefractionView(
-            refractiveIndex: configuration.refractiveIndex,
-            cornerRadius: shape.cornerRadius
+        Group {
+            if #available(macOS 26.0, *) {
+                shape
+                    .fill(Color.clear)
+                    .glassEffect(Glass.clear, in: shape)
+            } else {
+                IslandFallbackRefractionView()
+            }
+        }
+        .opacity(
+            IslandLiquidGlassStyle.nativeRefractionOpacity(
+                for: configuration
+            )
         )
         .clipShape(shape)
         .allowsHitTesting(false)
@@ -872,6 +761,80 @@ private struct IslandNotchBackground: View {
         }
     }
 
+}
+
+struct IslandRefractionFixtureView: View {
+    private let neutral = NotchGlassConfiguration(
+        blur: 0,
+        refractiveIndexHundredths: 100
+    )
+    private let strongest = NotchGlassConfiguration(
+        blur: 0,
+        refractiveIndexHundredths: 300
+    )
+
+    var body: some View {
+        VStack(spacing: 22) {
+            Text("Native Refraction")
+                .font(.title2.bold())
+
+            fixture(configuration: neutral, title: "Index 1.00")
+            fixture(configuration: strongest, title: "Index 3.00")
+        }
+        .padding(28)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.clear)
+    }
+
+    private func fixture(
+        configuration: NotchGlassConfiguration,
+        title: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title)
+                .font(.headline.monospacedDigit())
+
+            IslandNotchBackground(
+                isExpanded: true,
+                appearance: .liquidGlass,
+                configuration: configuration
+            )
+            .frame(width: 500, height: 190)
+        }
+    }
+}
+
+struct IslandRefractionBackdropFixtureView: View {
+    var body: some View {
+        Canvas { context, size in
+            context.fill(
+                Path(CGRect(origin: .zero, size: size)),
+                with: .color(.white)
+            )
+
+            for x in stride(from: 0.0, through: size.width, by: 10) {
+                var path = Path()
+                path.move(to: CGPoint(x: x, y: 0))
+                path.addLine(to: CGPoint(x: x, y: size.height))
+                context.stroke(
+                    path,
+                    with: .color(Int(x / 10).isMultiple(of: 5) ? .black : .blue),
+                    lineWidth: Int(x / 10).isMultiple(of: 5) ? 3 : 1
+                )
+            }
+
+            for y in stride(from: 0.0, through: size.height, by: 10) {
+                var path = Path()
+                path.move(to: CGPoint(x: 0, y: y))
+                path.addLine(to: CGPoint(x: size.width, y: y))
+                context.stroke(
+                    path,
+                    with: .color(Int(y / 10).isMultiple(of: 5) ? .black : .red),
+                    lineWidth: Int(y / 10).isMultiple(of: 5) ? 3 : 1
+                )
+            }
+        }
+    }
 }
 
 struct TimerIslandView: View {

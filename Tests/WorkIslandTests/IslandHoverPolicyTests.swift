@@ -510,7 +510,7 @@ final class IslandHoverPolicyTests: XCTestCase {
         )
     }
 
-    func testRefractiveIndexChangesThePhysicalLensWithoutChangingBaseStyle() {
+    func testRefractiveIndexChangesNativeOpticsWithoutChangingBaseStyle() {
         let minimum = NotchGlassConfiguration(
             blur: 0,
             refractiveIndexHundredths: 100
@@ -541,22 +541,28 @@ final class IslandHoverPolicyTests: XCTestCase {
             accuracy: 0.000_001
         )
 
-        let neutralMagnitudes = IslandConvexSquircleLens
-            .displacementMagnitudes(refractiveIndex: minimum.refractiveIndex)
-        let standardMagnitudes = IslandConvexSquircleLens
-            .displacementMagnitudes(refractiveIndex: 1.5)
-        let strongestMagnitudes = IslandConvexSquircleLens
-            .displacementMagnitudes(refractiveIndex: maximum.refractiveIndex)
-
-        XCTAssertEqual(neutralMagnitudes.max(), 0)
-        XCTAssertGreaterThan(standardMagnitudes.max() ?? 0, 25)
+        let standard = NotchGlassConfiguration.standard
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.nativeRefractionOpacity(for: minimum),
+            0,
+            accuracy: 0.000_001
+        )
         XCTAssertGreaterThan(
-            strongestMagnitudes.max() ?? 0,
-            standardMagnitudes.max() ?? 0
+            IslandLiquidGlassStyle.nativeRefractionOpacity(for: standard),
+            0
+        )
+        XCTAssertLessThan(
+            IslandLiquidGlassStyle.nativeRefractionOpacity(for: standard),
+            IslandLiquidGlassStyle.nativeRefractionOpacity(for: maximum)
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.nativeRefractionOpacity(for: maximum),
+            0.45,
+            accuracy: 0.000_001
         )
     }
 
-    func testConvexSquircleProfileAndDisplacementStaySymmetric() throws {
+    func testConvexSquircleReferenceProfileAndMapStaySymmetric() throws {
         XCTAssertEqual(
             IslandConvexSquircleLens.profileHeight(at: 0),
             0,
@@ -629,7 +635,7 @@ final class IslandHoverPolicyTests: XCTestCase {
         )
     }
 
-    func testConvexSquircleMapUsesIndexOneAsNeutral() throws {
+    func testConvexSquircleReferenceMapUsesIndexOneAsNeutral() throws {
         let size = CGSize(width: 500, height: 190)
 
         XCTAssertNil(

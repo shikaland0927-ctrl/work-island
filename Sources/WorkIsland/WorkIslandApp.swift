@@ -14,10 +14,7 @@ struct WorkIslandApp: App {
 
     var body: some Scene {
         Window("Work Island", id: "main") {
-            RootView()
-                .environmentObject(appDelegate.store)
-                .environmentObject(appDelegate.preferences)
-                .environmentObject(appDelegate.launchAtLogin)
+            mainContent
                 .background(
                     WindowReader { window in
                         appDelegate.registerMainWindow(window)
@@ -55,6 +52,18 @@ struct WorkIslandApp: App {
                         appDelegate.registerSettingsWindow(window)
                     }
                 )
+        }
+    }
+
+    @ViewBuilder
+    private var mainContent: some View {
+        if ApplicationQAConfiguration.showsGlassRefractionFixture {
+            IslandRefractionFixtureView()
+        } else {
+            RootView()
+                .environmentObject(appDelegate.store)
+                .environmentObject(appDelegate.preferences)
+                .environmentObject(appDelegate.launchAtLogin)
         }
     }
 }

@@ -12,6 +12,14 @@ enum ApplicationVisibilityPolicy {
     }
 }
 
+enum ApplicationQAConfiguration {
+    static var showsGlassRefractionFixture: Bool {
+        Bundle.main.object(
+            forInfoDictionaryKey: "WorkIslandGlassRefractionFixture"
+        ) as? Bool == true
+    }
+}
+
 enum LaunchAtLoginPolicy {
     static func canManage(bundleURL: URL) -> Bool {
         bundleURL
@@ -111,6 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainWindowObservers: [NSObjectProtocol] = []
     private weak var settingsWindow: NSWindow?
     private var settingsWindowObservers: [NSObjectProtocol] = []
+    private var glassRefractionBackdropWindow: NSWindow?
 
     override init() {
         store = WorkTimerStore()
@@ -176,6 +185,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
+        if ApplicationQAConfiguration.showsGlassRefractionFixture {
+            configureGlassRefractionFixture(window: window)
+        }
         updateApplicationVisibility()
     }
 
@@ -374,6 +386,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindowObservers.removeAll()
     }
 
+    private func configureGlassRefractionFixture(window: NSWindow) {
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = false
+
+        guard glassRefractionBackdropWindow == nil else {
+            return
+        }
+
+        let backdrop = NSWindow(
+            contentRect: window.frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        backdrop.isOpaque = true
+        backdrop.backgroundColor = .white
+        backdrop.hasShadow = false
+        backdrop.ignoresMouseEvents = true
+        backdrop.isReleasedWhenClosed = false
+        backdrop.contentView = NSHostingView(
+            rootView: IslandRefractionBackdropFixtureView()
+        )
+        backdrop.setFrame(window.frame, display: true)
+        glassRefractionBackdropWindow = backdrop
+        window.addChildWindow(backdrop, ordered: .below)
+        backdrop.orderFront(nil)
+        window.orderFront(nil)
+    }
+
     private func updateApplicationVisibility() {
         updateApplicationVisibility(
             mainWindowVisible: mainWindow?.isVisible == true
@@ -425,17 +467,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferences: AppPreferences,
         launchAtLogin: LaunchAtLoginController
     ) -> NSWindow? {
-        let rootView = RootView()
-            .environmentObject(store)
-            .environmentObject(preferences)
-            .environmentObject(launchAtLogin)
+        let rootView: AnyView
+        if ApplicationQAConfiguration.showsGlassRefractionFixture {
+            rootView = AnyView(IslandRefractionFixtureView())
+        } else {
+            rootView = AnyView(
+                RootView()
+                    .environmentObject(store)
+                    .environmentObject(preferences)
+                    .environmentObject(launchAtLogin)
+            )
+        }
         let hostingController = NSHostingController(rootView: rootView)
+        let isFixture = ApplicationQAConfiguration.showsGlassRefractionFixture
         let window = NSWindow(
             contentRect: NSRect(
                 x: 0,
                 y: 0,
-                width: MainWindowLayout.defaultWidth,
-                height: MainWindowLayout.defaultHeight
+                width: isFixture ? 620 : MainWindowLayout.defaultWidth,
+                height: isFixture ? 610 : MainWindowLayout.defaultHeight
             ),
             styleMask: [
                 .titled,
@@ -448,7 +498,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
 
-        window.title = "Work Island"
+        window.title = isFixture ? "Glass Refraction QA" : "Work Island"
         window.contentViewController = hostingController
         window.minSize = NSSize(
             width: MainWindowLayout.minimumWidth,
@@ -456,7 +506,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         window.isReleasedWhenClosed = false
 
-        if !window.setFrameUsingName("main") {
+        if isFixture || !window.setFrameUsingName("main") {
             window.center()
         }
         window.setFrameAutosaveName("main")

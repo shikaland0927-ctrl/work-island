@@ -8,7 +8,7 @@ This checklist records the last known state. Before any external action, verify 
 
 - [x] Permanent bundle ID confirmed: `com.shikazeriku.workisland`
 - [x] Xcode macOS app target and shared scheme created
-- [x] Version 1.0.0 configured; local source now targets build 60, while uploaded build 1 remains unchanged
+- [x] Version 1.0.0 configured; local source now targets build 61, while uploaded build 1 remains unchanged
 - [x] macOS 13 minimum configured
 - [x] Universal arm64/x86_64 archive verified
 - [x] App Sandbox enabled
@@ -19,7 +19,7 @@ This checklist records the last known state. Before any external action, verify 
 - [x] Apple Development certificate created and strict signature verified
 - [x] Existing-data Import and Export implemented with pre-import backup
 - [x] Privacy text is available from the app menu
-- [x] Swift package tests pass: 112/112 on the current 0.11.24 source
+- [x] Swift package tests pass: 112/112 on the current 0.11.25 source
 - [x] Menu-bar status item removed; the canonical installed app can manage its macOS login item from onboarding or Settings
 - [x] English App Store metadata draft prepared
 
@@ -60,8 +60,8 @@ This checklist records the last known state. Before any external action, verify 
 - [x] Pass Xcode's upload analysis and App Store Connect validation
 - [x] Upload version 1.0.0, build 1 to App Store Connect
 - [x] Wait for processing and confirm `Non-Exempt Encryption: No`
-- [x] Create and structurally validate an unsigned universal version 1.0.0, build 60 archive from the current source
-- [ ] Create and validate a Distribution-signed version 1.0.0, build 60 or a newer unique build from the current source
+- [x] Create and structurally validate an unsigned universal version 1.0.0, build 61 archive from the current source
+- [ ] Create and validate a Distribution-signed version 1.0.0, build 61 or a newer unique build from the current source
 - [ ] Upload that new build and wait for App Store Connect processing
 - [ ] Add the new build to TestFlight and let the user complete cold-launch, physical notch/hover/click, timer, Import/Export, Dashboard-range, and History-edit QA
 - [ ] Submit the tested build to Mac App Review

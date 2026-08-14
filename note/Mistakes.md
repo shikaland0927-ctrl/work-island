@@ -93,13 +93,28 @@ still did not refract the backdrop: the control continued to change only color
 and edge decoration. Calling the old `0–250` cosmetic intensity “Refraction”
 also obscured the fact that the reference varies a physical refractive index.
 
-The current correction treats Refraction as index `1.00–3.00`, uses air `n=1`,
-derives normals from the reference's Convex Squircle profile, applies Snell's
-law, and feeds the resulting symmetric RG map to public macOS
-`CALayer.backgroundFilters` with `CIDisplacementDistortion`. Index `1.00`
-removes the filter entirely. Frost and Bezel Depth were removed from Settings
-and fixed at `6` and `0`. The new physical value uses a new defaults key rather
-than silently reinterpreting the incompatible old cosmetic scale.
+A subsequent correction generated a valid symmetric Convex Squircle RG map and
+attached `CIDisplacementDistortion` through `CALayer.backgroundFilters`. Unit
+tests proved the geometry and filter state, but the user again saw no change.
+That result was correct: `backgroundFilters` filter content immediately behind a
+layer in its own compositing hierarchy; the layer nested in the transparent
+SwiftUI notch window did not gain access to another window's desktop backdrop.
+Putting filters on `NSGlassEffectView`, the root window layer, or a SwiftUI
+shader around native AppKit glass did not cross that compositor boundary either;
+the shader/glass combination could also render an unsupported-effect warning.
+Thus a generated map and a non-empty filter array were not visual evidence.
+
+Public native glass can sample the cross-window backdrop, but it does not expose
+the sampled texture to an arbitrary Convex Squircle displacement shader. Exact
+CSS/SVG-style custom displacement of the raw desktop would require screen
+capture or private compositor APIs, neither of which is appropriate here. The
+current public-API correction therefore keeps index `1.00` neutral and maps the
+normalized Fresnel reflectance `((n − 1) / (n + 1))²` to the opacity of a
+separate untinted native Clear Glass optical surface. This visibly changes
+Apple-owned lensing/scattering while Blur remains independent; it is a native
+approximation, not a claim of exact physical Convex Squircle displacement.
+Frost and Bezel Depth remain fixed at `6` and `0`, and the incompatible old
+cosmetic Refraction value is not silently reinterpreted.
 
 The first Blur correction still switched between identity, clear, regular, and
 several Material types at integer boundaries. Even when each mapping was
@@ -118,14 +133,20 @@ Prevention:
 - Inspect the reference's live generated style and script before translating a
   named control. For a true Blur `0`, remove the native glass/material layers
   rather than treating `Glass.clear` as zero blur.
-- Do not translate Refraction into color or decorative strokes. If the product
-  promises refraction on macOS, inspect Core Animation/Core Image as well as
-  SwiftUI: `CALayer.backgroundFilters` can filter the content immediately behind
-  a layer, and `CIDisplacementDistortion` accepts a real displacement map.
-- Treat a refractive-index control as a physical quantity. Keep index `1.00`
-  neutral, derive vectors orthogonally from the shape boundary, test mirrored
-  points and map generation, and use a new persistence key when an old cosmetic
-  scale has no truthful migration.
+- Do not translate Refraction into color or decorative strokes. Keep index
+  `1.00` neutral and use a new persistence key when an old cosmetic scale has no
+  truthful migration.
+- Do not infer cross-window backdrop rendering from a generated map, numeric
+  unit tests, or a non-empty Core Animation filter array. Test exact Release
+  output with a transparent foreground window over a separate detailed backdrop
+  window and compare aligned pixels at the control endpoints.
+- `CALayer.backgroundFilters` can process content behind a layer inside the
+  applicable compositing hierarchy, but it does not make arbitrary pixels from
+  another window available to a nested SwiftUI/AppKit layer. Verify this boundary
+  before designing around Core Image displacement.
+- State public-API limits explicitly. Native glass may own backdrop sampling and
+  lensing without exposing that sampled backdrop to a custom shader; do not call
+  a native optical-strength approximation exact Convex Squircle displacement.
 - Never switch native glass or Material types between adjacent slider integers.
   Keep one rendering path and interpolate opacity/radius across the full range.
 - Unit-test endpoints and default invariants, but never claim those numeric tests
@@ -289,8 +310,8 @@ Prevention:
 - Keep the native glass surface outside periodic `TimelineView` content so one-second analytics/notch updates do not recreate it.
 - Render repeated notch chips and secondary buttons with lightweight tinted fills, borders, and one restrained shadow.
 - Avoid a full-window Material layer and duplicate glow shadows unless profiling shows they are justified.
-- SwiftUI's public native `Glass` surface exposes regular/clear/identity, tint, and interactivity—not arbitrary CSS-style Frost, Blur, Refraction, or Bezel Depth values. Do not stop that API inventory at SwiftUI when the requirement is actual backdrop displacement: public macOS Core Animation background filters and Core Image distortion filters can supply the missing optical stage. Keep unsupported controls out of Settings instead of assigning them misleading decorative effects.
-- Build shape-dependent displacement maps off the main thread, coalesce rapid slider updates, cache/skip unchanged geometry, and remove the filter at its neutral endpoint. Keep the base tint/reflection independent so changing refractive index changes only refraction.
+- SwiftUI's public native `Glass` surface exposes regular/clear/identity, tint, and interactivity—not arbitrary CSS-style Frost, Blur, Refraction, or Bezel Depth values. Public Core Animation/Core Image filters do not automatically gain cross-window backdrop access, so they cannot be assumed to supply a missing custom-displacement stage. Keep unsupported controls out of Settings instead of assigning them misleading decorative effects.
+- Keep the base tint/reflection and Blur independent from the Refraction control. If Refraction scales a native optical surface, use an untinted surface, a neutral endpoint, a continuous mapping, and wording that describes it as a native approximation.
 - Verify both interaction feel and idle/active CPU with an isolated bundle before installing. A successful compile or geometry test does not prove compositor responsiveness.
 - Transparency alone does not create a rich glass look. Native glass derives much of its luminosity and color from the content behind it, so a small notch over a dark or uniform menu-bar background cannot match a high-key reference render automatically.
 - Compare regular and clear glass over the same realistic fixture before choosing. Clear can expose more background but also wash out dense white labels; prefer regular plus restrained local reflection when legibility wins.
