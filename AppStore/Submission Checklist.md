@@ -8,7 +8,7 @@ This checklist records the last known state. Before any external action, verify 
 
 - [x] Permanent bundle ID confirmed: `com.shikazeriku.workisland`
 - [x] Xcode macOS app target and shared scheme created
-- [x] Version 1.0.0 configured; local source now targets build 76, while uploaded build 1 remains unchanged
+- [x] Version 1.0.0 configured; local source now targets build 77, while uploaded build 1 remains unchanged
 - [x] macOS 13 minimum configured
 - [x] Universal arm64/x86_64 archive verified
 - [x] App Sandbox enabled
@@ -19,7 +19,7 @@ This checklist records the last known state. Before any external action, verify 
 - [x] Apple Development certificate created and strict signature verified
 - [x] Existing-data Import and Export implemented with pre-import backup
 - [x] Privacy text is available from the app menu
-- [x] Swift package tests pass: 120/120 on the current 0.11.40 source
+- [x] Swift package tests pass: 121/121 on the current 0.11.41 source
 - [x] Menu-bar status item removed; the canonical installed app can manage its macOS login item from onboarding or Settings
 - [x] English App Store metadata draft prepared
 
@@ -54,7 +54,7 @@ This checklist records the last known state. Before any external action, verify 
 
 - [x] Refresh the Apple account in Xcode and confirm Team `KTJ85A4ARS` has access to Certificates, Identifiers, & Profiles
 - [x] Allow Xcode to create and use Cloud Managed Apple Distribution signing
-- [x] Re-run all tests on the current source: 120/120 passed on 2026-08-19
+- [x] Re-run all tests on the current source: 121/121 passed on 2026-08-19
 - [x] Create and strictly verify a fresh Apple Development-signed 1.0.0 (1) archive for distribution export
 - [x] Export and inspect the Store-signed 1.0.0 (1) package locally without uploading
 - [x] Pass Xcode's upload analysis and App Store Connect validation
@@ -62,8 +62,9 @@ This checklist records the last known state. Before any external action, verify 
 - [x] Wait for processing and confirm `Non-Exempt Encryption: No`
 - [x] Create and structurally validate an unsigned universal version 1.0.0, build 74 archive from the preceding source
 - [x] Create and structurally validate an unsigned universal version 1.0.0, build 75 archive from the preceding source
-- [x] Create and structurally validate an unsigned universal version 1.0.0, build 76 archive from the current source
-- [ ] Create and validate a Distribution-signed version 1.0.0, build 76 or a newer unique build from the current source
+- [x] Create and structurally validate an unsigned universal version 1.0.0, build 76 archive from the preceding source
+- [x] Create and structurally validate an unsigned universal version 1.0.0, build 77 archive from the current source
+- [ ] Create and validate a Distribution-signed version 1.0.0, build 77 or a newer unique build from the current source
 - [ ] Upload that new build and wait for App Store Connect processing
 - [ ] Add the new build to TestFlight and let the user complete cold-launch, physical notch/hover/click, timer, Import/Export, Dashboard-range, and History-edit QA
 - [ ] Submit the tested build to Mac App Review

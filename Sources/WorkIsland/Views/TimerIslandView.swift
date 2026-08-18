@@ -78,6 +78,17 @@ struct IslandSessionIdentityLayout {
     static let activeRowHeight = idleRowHeight
 }
 
+struct IslandDetailsToggleLayout {
+    static let rowSpacing: CGFloat = 10
+    static let actionSpacing: CGFloat = rowSpacing
+    static let controlSize: CGFloat = IslandSessionIdentityLayout.idleRowHeight
+    static let symbolCanvasSize: CGFloat = 16
+
+    static func systemImage(isShowingDetails: Bool) -> String {
+        isShowingDetails ? "chevron.backward" : "list.bullet.rectangle"
+    }
+}
+
 struct ManualAddFeedbackTiming {
     static let labelFadeOutDuration: TimeInterval = 0.18
     static let labelFadeInDuration: TimeInterval = 0.24
@@ -1157,7 +1168,7 @@ struct TimerIslandView: View {
 
     private func idleActivityPicker(at date: Date) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
+            HStack(spacing: IslandDetailsToggleLayout.rowSpacing) {
                 IslandSessionIdentity(
                     eyebrow: idleEyebrow,
                     title: store.selectedTask?.name ?? "Choose an activity"
@@ -1184,24 +1195,7 @@ struct TimerIslandView: View {
                     }
                 }
 
-                Button {
-                    isShowingDetails = true
-                } label: {
-                    Image(systemName: "list.bullet.rectangle")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.76))
-                        .frame(width: 34, height: 34)
-                        .islandSurface(
-                            in: Circle(),
-                            classicFill: Color.white.opacity(0.09),
-                            classicStroke: .clear,
-                            liquidTint: .white
-                        )
-                }
-                .buttonStyle(IslandButtonStyle())
-                .accessibilityLabel("Details")
-
-                idlePrimaryButton(at: date)
+                idleTrailingActions(at: date, isShowingDetails: false)
             }
             .frame(height: IslandSessionIdentityLayout.idleRowHeight)
 
@@ -1228,7 +1222,7 @@ struct TimerIslandView: View {
 
     private func idleDetails(at date: Date) -> some View {
         VStack(alignment: .leading, spacing: 9) {
-            HStack(spacing: 9) {
+            HStack(spacing: IslandDetailsToggleLayout.rowSpacing) {
                 IslandActivityItemMenu(
                     presentation: presentation,
                     date: date
@@ -1236,25 +1230,9 @@ struct TimerIslandView: View {
 
                 Spacer(minLength: 8)
 
-                Button {
-                    isShowingDetails = false
-                } label: {
-                    Image(systemName: "chevron.backward")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.76))
-                        .frame(width: 34, height: 34)
-                        .islandSurface(
-                            in: Circle(),
-                            classicFill: Color.white.opacity(0.09),
-                            classicStroke: .clear,
-                            liquidTint: .white
-                        )
-                }
-                .buttonStyle(IslandButtonStyle())
-                .accessibilityLabel("Activities")
-
-                idlePrimaryButton(at: date)
+                idleTrailingActions(at: date, isShowingDetails: true)
             }
+            .frame(height: IslandSessionIdentityLayout.idleRowHeight)
 
             TextField(
                 "Note",
@@ -1275,6 +1253,46 @@ struct TimerIslandView: View {
                 liquidTint: .white
             )
         }
+    }
+
+    private func idleTrailingActions(
+        at date: Date,
+        isShowingDetails: Bool
+    ) -> some View {
+        HStack(spacing: IslandDetailsToggleLayout.actionSpacing) {
+            Button {
+                self.isShowingDetails.toggle()
+            } label: {
+                Image(
+                    systemName: IslandDetailsToggleLayout.systemImage(
+                        isShowingDetails: isShowingDetails
+                    )
+                )
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.76))
+                .frame(
+                    width: IslandDetailsToggleLayout.symbolCanvasSize,
+                    height: IslandDetailsToggleLayout.symbolCanvasSize
+                )
+                .frame(
+                    width: IslandDetailsToggleLayout.controlSize,
+                    height: IslandDetailsToggleLayout.controlSize
+                )
+                .islandSurface(
+                    in: Circle(),
+                    classicFill: Color.white.opacity(0.09),
+                    classicStroke: .clear,
+                    liquidTint: .white
+                )
+            }
+            .buttonStyle(IslandButtonStyle())
+            .accessibilityLabel(
+                isShowingDetails ? "Activities" : "Details"
+            )
+
+            idlePrimaryButton(at: date)
+        }
+        .frame(height: IslandSessionIdentityLayout.idleRowHeight)
     }
 
     private func finish(at date: Date, completingItem: Bool = false) {

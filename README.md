@@ -62,7 +62,7 @@ Before changing this project, read workspace `../AGENTS.md`, project `AGENTS.md`
 
 The current development application is Work Island.app inside the dist.noindex folder.
 
-The current source targets local-development version 0.11.40 build 92. The installed `/Applications/Work Island.app` must be compared with staging after each rebuild; rebuilding `dist.noindex` alone does not update the installed copy.
+The current source targets local-development version 0.11.41 build 93. The installed `/Applications/Work Island.app` must be compared with staging after each rebuild; rebuilding `dist.noindex` alone does not update the installed copy.
 
 The previously documented notarized 0.5.3 friend-beta ZIP is no longer present at its recorded Downloads path. The replaced ad-hoc 0.5.3 Applications bundle is preserved under `dist.previous.noindex`, but it is not a substitute for the notarized ZIP. Build, Developer ID-sign, notarize, staple, and verify a fresh artifact before sharing another direct beta.
 
@@ -72,7 +72,7 @@ If macOS shows a first-launch warning, right-click the app and choose Open.
 
 For normal Swift package development and tests, open Package.swift and run the WorkIsland scheme.
 
-For TestFlight or the Mac App Store, open WorkIsland.xcodeproj and use the Work Island scheme. The Store target uses the permanent bundle identifier `com.shikazeriku.workisland`, version 1.0.0 build 76, App Sandbox, and universal arm64/x86_64 release builds. The project supports macOS 13 and later.
+For TestFlight or the Mac App Store, open WorkIsland.xcodeproj and use the Work Island scheme. The Store target uses the permanent bundle identifier `com.shikazeriku.workisland`, version 1.0.0 build 77, App Sandbox, and universal arm64/x86_64 release builds. The project supports macOS 13 and later.
 
 ## Rebuild the app
 

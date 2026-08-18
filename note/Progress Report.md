@@ -1,6 +1,6 @@
 # Work Island — Current Handoff
 
-Last consolidated: 2026-08-18
+Last consolidated: 2026-08-19
 
 This file is the canonical current-state handoff for the next Codex task. It is intentionally weighted toward product invariants, current architecture, unresolved acceptance, and safe next actions. Superseded chronological progress has been removed.
 
@@ -201,17 +201,17 @@ Current source behavior seeds a default Activity only when no storage file exist
 
 The Store bundle `com.shikazeriku.workisland` is sandboxed and stores data in its own container. It does not automatically inherit direct-build data. Use File > Export in the direct app and File > Import in the Store app. Import writes `work-data-before-import.json` beside the Store data before replacement.
 
-Current direct data state, reverified after installing 0.11.40 without launching it on 2026-08-19—a safety reference, not a restore target:
+Current direct data state, reverified after installing 0.11.41 without launching it on 2026-08-19, following the user's confirmed archived deletion—a safety reference, not a restore target:
 
-- SHA-256: `ec789874d9e3f9f68e8111c273e99ef6c413060c91d40690f574d116e5d78c7a`
+- SHA-256: `76392bd27218ff23fe87107f34482667842b836503b9994cbce7afdb8628f67a`
 - schema 6
-- 4 Activities: 3 active and 1 archived
+- 3 active Activities and no archived Activities
 - 0 child Items
 - 50 records
 - no ActiveWork
 - complete exported preferences SHA-256: `0e83055b2e72eb086a0d398f38ffd3b3d9ce7a56ebfdfc54c05fadc77428d293`
 
-The current byte-for-byte safety snapshot is `.qa-backups.noindex/20260819-001006-pre-archived-delete`. Its pre-UI, pre-install, and post-install JSON/preferences exports match exactly. Always inspect the live file and complete preferences domain again before any restoration; their hashes, record count, and ActiveWork can legitimately change after this verification.
+The current byte-for-byte safety snapshot is `.qa-backups.noindex/20260819-011000-pre-details-alignment-install`. Its before-stop, after-stop, and after-install JSON/preferences pairs match exactly. The older archived-delete snapshot intentionally contains both pre-delete and post-delete states and must not be used as a restore target without inspecting the filenames and live state. Always inspect the live file and complete preferences domain again before any restoration.
 
 ## Current build and installed state
 
@@ -219,34 +219,35 @@ Last verified on 2026-08-19:
 
 Direct development channel:
 
-- Source `Info.plist`: version 0.11.40, build 92
+- Source `Info.plist`: version 0.11.41, build 93
 - Staging: `dist.noindex/Work Island.app`
 - Installed: `/Applications/Work Island.app`
 - Bundle ID: `local.shikazeriku.work-island`
-- Staging and installed executable SHA-256 matched: `57f795f12b769540c39cc5238d8e72d83c87fcb3a6de9f1c4fe6a42d7141d13f`
+- Staging and installed executable SHA-256 matched: `755ba8a95309f1b6d65a46e2e04912b9401688753b89dc3c5a929b5a7f08baa5`
 - Development bundle is ad-hoc signed, not a friend-beta release.
-- The replaced installed 0.11.39 build 91 bundle is preserved at `dist.previous.noindex/Work Island 0.11.39 (91)-installed-replaced-by-0.11.40.app`; earlier preserved bundles remain under the same `.noindex` directory.
+- The replaced installed 0.11.40 build 92 bundle is preserved at `dist.previous.noindex/Work Island 0.11.40 (92)-installed-replaced-by-0.11.41.app`; earlier preserved bundles remain under the same `.noindex` directory.
 - The new installed bundle has not been launched; the user owns visual and functional acceptance.
 
 Store channel:
 
-- Local target: version 1.0.0, build 76
+- Local target: version 1.0.0, build 77
 - Permanent bundle ID: `com.shikazeriku.workisland`
-- Latest local archive: `dist.appstore.noindex/Work Island 1.0.0 (76)-20260819-002817.xcarchive`
+- Latest local archive: `dist.appstore.noindex/Work Island 1.0.0 (77)-20260819-010807.xcarchive`
 - Archive is unsigned structural QA only, universal `x86_64 arm64`
-- Archived executable SHA-256: `c5109103eb3f9d684ca98a3a39d3abd955d86fb9d81f74455248b88f166eed91`
+- Archived executable SHA-256: `ba7d008415089e776f7170b7b302385dbb9b7ce1de14811cb49ec41399c4a3c3`
 - It has not been Distribution-signed, exported, uploaded, assigned to testers, or selected for review.
 
 Verification baseline:
 
-- All 120 Swift tests passed for the 0.11.40 source. Regression coverage protects the restrained Glass tint, the 64-point native navigation slot, and archived Unicode Activity deletion with zero records. Existing coverage continues to include fixed `75%` motion, Activity row alignment, Manual confirmation timing, the shared `34 pt` notch Activity row, vivid notch Glass actions, exact Resume/Start equality, fixed Blur `8`, fixed Indigo Heatmap, fresh Step `5 min`, inert legacy keys, `Classic | Glass` copy, persistent Activity scroller allocation, Status layout, and previous timer/data/recurrence behavior.
+- All 121 Swift tests passed for the 0.11.41 source. Regression coverage protects the shared `34 pt` Details/back control slot and `10 pt` trailing-action spacing used by both Classic and Glass, the restrained Window Glass tint, the 64-point native navigation slot, and archived Unicode Activity deletion with zero records. Existing coverage continues to include fixed `75%` motion, Activity row alignment, Manual confirmation timing, the shared `34 pt` notch Activity row, vivid notch Glass actions, exact Resume/Start equality, fixed Blur `8`, fixed Indigo Heatmap, fresh Step `5 min`, inert legacy keys, `Classic | Glass` copy, persistent Activity scroller allocation, Status layout, and previous timer/data/recurrence behavior.
 - On 2026-08-16 the user confirmed that the Activity page edge alignment and concise New Activity placeholder were correctly fixed.
 - Direct Release, strict ad-hoc bundle verification, staging/install hash parity, and unsigned universal Store archive checks passed. No new source file was added, so SwiftPM and Xcode continue to compile the same source membership.
 - Computer Use clicked the real Start control in an isolated Glass-notch copy of the production Activity fixture before and after the fix. The fixed before/after Activity crop had best vertical displacement `0 px`, correlation `0.9999995879`, and identical luminance centroids at thresholds 200, 220, and 240. Evidence is under `.qa.noindex/activity-layout-20260815-150503/` as `user-before-idle.jpg`, `user-before-running.jpg`, `user-after-idle.jpg`, and `user-after-running.jpg`.
 - Computer Use also executed Timer Start and Manual Add from both the normal and Details layouts before and after the motion fix using six isolated QA bundle identities under `.qa.noindex/notch-motion-20260815-161751/`. Actual Core Graphics window bounds exposed the rounding defect: the old expanded timer was `x=485, width=500, center=735.0` and the old collapsed Manual notch was `x=646, width=177, center=734.5`, while the physical notch center is `735.5`. The fixed expanded timer was `x=485, width=501, center=735.5`; the fixed collapsed Manual notch was `x=647, width=177, center=735.5`; all four observed terminal bounds remained at top-origin `y=0`.
 - Computer Use reproduced the duration-dependent Manual defect under `.qa.noindex/manual-duration-feedback-20260815-173639/` by opening the duration popover, changing `30` to `45 min`, and clicking Add while the popover was still open. In the final isolated bundle, the popover disappeared first, the disabled button exposed `Added` with a checkmark, and the notch explicitly collapsed after the full label morph plus one-second hold while the cursor remained over the former button position and a QA interaction lease still pinned normal hover behavior. Exactly one `2700 s` fixture record was added, the fixture stayed without ActiveWork, and the outgoing subtree did not reflow during shrink.
 - Computer Use operated the real Activities UI against two unique `.qa.` bundles and cloned current data under `.qa.noindex/archived-delete-20260819-001006/`. The final fixed bundle opened the parent-owned `Delete …?` alert for the archived Unicode/zero-record Activity, confirmed Delete, and persisted a fixture with exactly that one Activity removed: Tasks `4 → 3`, records `50 → 50`, child Items `0 → 0`. Production JSON and the complete production defaults domain remained unchanged. Screenshots before the click, at the alert, and after deletion are stored with that QA evidence.
-- The 0.11.40 install occurred only after stopping every Work Island process and snapshotting production JSON plus the complete preferences domain. Staging/install binaries match exactly, strict ad-hoc signature verification passes, and both production files remained byte-for-byte unchanged. The new build remains stopped until the user launches it.
+- The user then confirmed the installed 0.11.40 delete flow and intentionally removed the real archived Activity. Live state is now 3 active Activities, no archive, 50 records, and 0 child Items; the complete preferences export remained unchanged.
+- The 0.11.41 install occurred only after stopping the exact `/Applications` 0.11.40 process and snapshotting production JSON plus the complete preferences domain. Before-stop, after-stop, and after-install pairs match byte-for-byte; staging/install binaries match exactly; strict ad-hoc signature verification passes. The new build remains stopped until the user launches it.
 - No source file was added, moved, or removed. Direct Release and the unsigned universal Store archive both compile the same existing source membership.
 - LaunchServices and Spotlight were checked after cleanup and expose only `/Applications/Work Island.app`; staging, archive, derived, and preserved bundles remain confined to `.noindex` paths.
 - Treat this as a baseline only; rerun the relevant checks after source changes.
@@ -271,7 +272,7 @@ These are not confirmed defects. They require the user's physical interaction an
 14. Physically confirm the expanded-notch Glass still feels responsive. Confirm fixed Blur `8` keeps the intended translucency, selected Activities remain high-saturation blue-indigo, Start/Add are vivid green, Pause is vivid orange, Resume is visually the exact same green as Start, Finish is vivid indigo, Discard is vivid red, and the closed notch stays pure black. Start, Finish, Pause, Resume, and Discard must all remain clearly readable in their idle/running/paused layouts, both with and without a selected Item; Classic labels must remain unchanged. Press Start once and confirm the Activity label stays physically still rather than dropping by 1–2 pixels.
 15. Confirm Total/Status, New Activity, the History header, and General begin at the same top height. In Activities, compare a list that cannot scroll with one that can: card width must stay unchanged, the vertical scrollbar must keep the same right edge, and native drag-reordering must still feel normal.
 16. Confirm the Window keeps a restrained split: the background, cards, charts, lists, fields, status, chips, and repeated row controls remain Classic, while Graph Week/Month, Distribution Day/Week/Month, Routine frequency/Dates-Pattern/ordinal selections, and Settings Notch Style/Open Notch/Alert/Manual Set As use responsive official Glass. Confirm the Graph/Distribution chevrons now look and behave like one native back/forward navigation control, with the right arrow disabled at the current period. Shared one-off primary/secondary actions and the first notch-introduction banner should also use system Glass, while History Start/End stays Classic. Also confirm period controls do not flicker during timed Dashboard refreshes and Distribution keeps each Activity close to its percentage/duration.
-17. When ready to permanently remove the currently archived Activity, confirm its trash button reliably opens the delete alert even at the bottom of the Activities List, then confirm Delete removes it. The automated proof used only an isolated clone; the real archived Activity remains untouched until the user chooses this action.
+17. In both Classic and Glass, repeatedly switch the idle notch between Activities and Details. Confirm the round Details/back control stays at exactly the same painted position beside Start/Add, with only its SF Symbol changing and no one-pixel horizontal or vertical jump.
 
 ## Release state and boundaries
 
@@ -285,7 +286,7 @@ App Store/TestFlight:
 
 - App Store Connect app record exists for Apple ID `6797406491` with permanent bundle ID `com.shikazeriku.workisland`.
 - Version 1.0.0 build 1 was uploaded and processed. Last observed TestFlight state was `Ready to Submit`; it was not assigned to testers, submitted to App Review, or released.
-- Local source is now build 76; never reuse upload build number 1.
+- Local source is now build 77; never reuse upload build number 1.
 - The user chose free distribution and excluded all 27 EU member states. Do not change legal/trader/storefront choices without asking.
 - Support and Privacy pages were published, and App Privacy was set to `Data Not Collected`. Verify live URLs and App Store Connect state before relying on this.
 - Existing screenshots predate the Activities rename and the move of Manual out of Dashboard; regenerate them before App Review.

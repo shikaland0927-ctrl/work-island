@@ -39,6 +39,30 @@ final class IslandHoverPolicyTests: XCTestCase {
         XCTAssertEqual(IslandSessionIdentityLayout.idleRowHeight, 34)
     }
 
+    func testDetailsAndBackShareOneStableTrailingControlSlot() {
+        XCTAssertEqual(IslandDetailsToggleLayout.rowSpacing, 10)
+        XCTAssertEqual(
+            IslandDetailsToggleLayout.actionSpacing,
+            IslandDetailsToggleLayout.rowSpacing
+        )
+        XCTAssertEqual(
+            IslandDetailsToggleLayout.controlSize,
+            IslandSessionIdentityLayout.idleRowHeight
+        )
+        XCTAssertLessThan(
+            IslandDetailsToggleLayout.symbolCanvasSize,
+            IslandDetailsToggleLayout.controlSize
+        )
+        XCTAssertEqual(
+            IslandDetailsToggleLayout.systemImage(isShowingDetails: false),
+            "list.bullet.rectangle"
+        )
+        XCTAssertEqual(
+            IslandDetailsToggleLayout.systemImage(isShowingDetails: true),
+            "chevron.backward"
+        )
+    }
+
     func testManualAddFeedbackMorphsBeforeAStableCollapse() {
         XCTAssertEqual(
             ManualAddFeedbackTiming.labelFadeOutDuration,
