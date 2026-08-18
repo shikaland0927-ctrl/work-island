@@ -11,7 +11,7 @@ enum WorkIslandAppearance: String, CaseIterable, Identifiable {
         case .classic:
             return "Classic"
         case .liquidGlass:
-            return "Liquid Glass"
+            return "Glass"
         }
     }
 }
@@ -71,51 +71,24 @@ enum DashboardCard: String, CaseIterable, Identifiable {
     }
 }
 
-enum HeatmapTint: String, CaseIterable, Identifiable {
+enum HeatmapTint: Equatable {
     case indigo
-    case blue
-    case cyan
-    case green
-    case orange
-    case pink
-
-    var id: String { rawValue }
-
-    var title: String {
-        rawValue.capitalized
-    }
 
     var color: Color {
-        switch self {
-        case .indigo:
-            return .indigo
-        case .blue:
-            return .blue
-        case .cyan:
-            return .cyan
-        case .green:
-            return .green
-        case .orange:
-            return .orange
-        case .pink:
-            return .pink
-        }
+        .indigo
     }
 }
 
 struct NotchGlassConfiguration: Equatable {
+    static let fixedBlur = 8
+    static let blurScaleMaximum = 12
     static let fixedFrost = 6
     static let fixedBezelDepth = 0
-    static let blurRange = 0...12
-    static let refractiveIndexHundredthsRange = 100...300
+    static let fixedRefractiveIndexHundredths = 100
 
-    static let standard = NotchGlassConfiguration(
-        blur: 2,
-        refractiveIndexHundredths: 150
-    )
+    static let standard = NotchGlassConfiguration()
 
-    let blur: Int
-    let refractiveIndexHundredths: Int
+    let blur = Self.fixedBlur
 
     var frost: Int {
         Self.fixedFrost
@@ -125,26 +98,35 @@ struct NotchGlassConfiguration: Equatable {
         Self.fixedBezelDepth
     }
 
+    var refractiveIndexHundredths: Int {
+        Self.fixedRefractiveIndexHundredths
+    }
+
     var refractiveIndex: Double {
-        Double(refractiveIndexHundredths) / 100
+        Double(Self.fixedRefractiveIndexHundredths) / 100
     }
 
-    init(
-        blur: Int,
-        refractiveIndexHundredths: Int
-    ) {
-        self.blur = Self.normalized(blur, in: Self.blurRange)
-        self.refractiveIndexHundredths = Self.normalized(
-            refractiveIndexHundredths,
-            in: Self.refractiveIndexHundredthsRange
-        )
+    private init() {}
+}
+
+enum NotchAnimationTiming {
+    static let fixedSpeedPercent = 75
+    static let standardMovementDuration: TimeInterval = 0.18
+    static let standardContentResponse = 0.24
+
+    static var movementDuration: TimeInterval {
+        scaled(standardMovementDuration)
     }
 
-    private static func normalized(
-        _ value: Int,
-        in range: ClosedRange<Int>
-    ) -> Int {
-        min(range.upperBound, max(range.lowerBound, value))
+    static var contentResponse: Double {
+        scaled(standardContentResponse)
+    }
+
+    private static func scaled<T: BinaryFloatingPoint>(
+        _ standardValue: T
+    ) -> T {
+        let speed = T(fixedSpeedPercent) / 100
+        return standardValue / speed
     }
 }
 
@@ -157,11 +139,11 @@ final class AppPreferences: ObservableObject {
         static let notchOpenMode = "notchOpenMode"
         static let dashboardOrder = "dashboardCardOrder"
         static let hiddenDashboardCards = "hiddenDashboardCards"
-        static let heatmapTint = "heatmapTint"
         static let dayStartHour = "dayStartHour"
         static let recordingMode = "activityRecordingMode"
         static let timerDurationMinutes = "timerDurationMinutes"
         static let manualDurationMinutes = "manualDurationMinutes"
+        static let durationMinuteStep = ManualDurationOptions.stepPreferenceKey
         static let manualTimeAnchor = "manualTimeAnchor"
         static let pomodoroFocusMinutes = "pomodoroFocusMinutes"
         static let pomodoroShortBreakMinutes = "pomodoroShortBreakMinutes"
@@ -170,16 +152,11 @@ final class AppPreferences: ObservableObject {
         static let completionRevealMode = "completionRevealMode"
         static let showsCompactProgress = "showsCompactTimerProgress"
         static let appearance = "appearanceStyle"
-        static let notchGlassBlur = "notchGlassBlur"
-        static let notchGlassRefractiveIndexHundredths =
-            "notchGlassRefractiveIndexHundredths"
     }
 
     @Published private(set) var isPrepared = false
     @Published private(set) var needsOnboarding = false
     @Published private(set) var showsNotchIntroduction = false
-    @Published private(set) var isNotchGlassPreviewRequested = false
-    @Published private(set) var notchGlassPreviewRequestRevision = 0
 
     @Published var appearance: WorkIslandAppearance {
         didSet {
@@ -187,18 +164,7 @@ final class AppPreferences: ObservableObject {
         }
     }
 
-    @Published private(set) var notchGlassConfiguration: NotchGlassConfiguration {
-        didSet {
-            defaults.set(
-                notchGlassConfiguration.blur,
-                forKey: Key.notchGlassBlur
-            )
-            defaults.set(
-                notchGlassConfiguration.refractiveIndexHundredths,
-                forKey: Key.notchGlassRefractiveIndexHundredths
-            )
-        }
-    }
+    let notchGlassConfiguration = NotchGlassConfiguration.standard
 
     @Published var notchOpenMode: NotchOpenMode {
         didSet {
@@ -230,11 +196,7 @@ final class AppPreferences: ObservableObject {
         }
     }
 
-    @Published var heatmapTint: HeatmapTint {
-        didSet {
-            defaults.set(heatmapTint.rawValue, forKey: Key.heatmapTint)
-        }
-    }
+    let heatmapTint: HeatmapTint = .indigo
 
     @Published private(set) var dayStartHour: Int {
         didSet {
@@ -256,6 +218,15 @@ final class AppPreferences: ObservableObject {
             defaults.set(
                 manualDurationMinutes,
                 forKey: Key.manualDurationMinutes
+            )
+        }
+    }
+
+    @Published private(set) var durationMinuteStep: Int {
+        didSet {
+            defaults.set(
+                durationMinuteStep,
+                forKey: Key.durationMinuteStep
             )
         }
     }
@@ -315,14 +286,6 @@ final class AppPreferences: ObservableObject {
         appearance = WorkIslandAppearance(
             rawValue: defaults.string(forKey: Key.appearance) ?? ""
         ) ?? .classic
-        notchGlassConfiguration = NotchGlassConfiguration(
-            blur: defaults.object(forKey: Key.notchGlassBlur) as? Int
-                ?? NotchGlassConfiguration.standard.blur,
-            refractiveIndexHundredths: defaults.object(
-                forKey: Key.notchGlassRefractiveIndexHundredths
-            ) as? Int
-                ?? NotchGlassConfiguration.standard.refractiveIndexHundredths
-        )
         notchOpenMode = NotchOpenMode(
             rawValue: defaults.string(forKey: Key.notchOpenMode) ?? ""
         ) ?? .hover
@@ -336,9 +299,6 @@ final class AppPreferences: ObservableObject {
             (defaults.stringArray(forKey: Key.hiddenDashboardCards) ?? [])
                 .compactMap(DashboardCard.init(rawValue:))
         )
-        heatmapTint = HeatmapTint(
-            rawValue: defaults.string(forKey: Key.heatmapTint) ?? ""
-        ) ?? .indigo
         dayStartHour = WorkdayCalendar.normalizedStartHour(
             defaults.object(forKey: Key.dayStartHour) as? Int ?? 0
         )
@@ -347,6 +307,10 @@ final class AppPreferences: ObservableObject {
         )
         manualDurationMinutes = Self.normalizedTimerDuration(
             defaults.object(forKey: Key.manualDurationMinutes) as? Int
+                ?? ManualDurationOptions.defaultMinuteStep
+        )
+        durationMinuteStep = ManualDurationOptions.normalizedStep(
+            defaults.object(forKey: Key.durationMinuteStep) as? Int
                 ?? ManualDurationOptions.defaultMinuteStep
         )
         manualTimeAnchor = SessionTimeAnchor(
@@ -437,35 +401,14 @@ final class AppPreferences: ObservableObject {
     func resetDashboard() {
         dashboardOrder = DashboardCard.defaultOrder
         hiddenDashboardCards = []
-        heatmapTint = .indigo
-    }
-
-    func setNotchGlassConfiguration(
-        blur: Int? = nil,
-        refractiveIndexHundredths: Int? = nil
-    ) {
-        notchGlassConfiguration = NotchGlassConfiguration(
-            blur: blur ?? notchGlassConfiguration.blur,
-            refractiveIndexHundredths: refractiveIndexHundredths
-                ?? notchGlassConfiguration.refractiveIndexHundredths
-        )
-    }
-
-    func resetNotchGlassConfiguration() {
-        notchGlassConfiguration = .standard
-    }
-
-    func beginNotchGlassPreview() {
-        notchGlassPreviewRequestRevision &+= 1
-        isNotchGlassPreviewRequested = true
-    }
-
-    func endNotchGlassPreview() {
-        isNotchGlassPreviewRequested = false
     }
 
     func setDayStartHour(_ hour: Int) {
         dayStartHour = WorkdayCalendar.normalizedStartHour(hour)
+    }
+
+    func setDurationMinuteStep(_ step: Int) {
+        durationMinuteStep = ManualDurationOptions.normalizedStep(step)
     }
 
     func setTimerDuration(hours: Int, minutes: Int) {

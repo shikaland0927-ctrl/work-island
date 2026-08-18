@@ -24,11 +24,11 @@ Before changing this project, read workspace `../AGENTS.md`, project `AGENTS.md`
 - Use Finish to keep an item open, or Complete to complete a Task or the current Routine occurrence
 - Choose a saved activity from the notch
 - Add an optional note to each activity record
-- Use Stopwatch, countdown Timer, Pomodoro, or Manual completed-work entry from the notch; correct completed records in History
+- Use Stopwatch, countdown Timer, Pomodoro, or Manual completed-work entry from the notch; Manual Add fades into Added, holds for one second, then closes even while hovered, and History can correct completed records
 - Let Timer record itself at the exact deadline, and let Pomodoro alternate configurable Focus, Break, and Long Break intervals while recording Focus only
-- See today's total work time beside permanent Stats for current streak, longest streak, and best day
+- See today's total work time beside permanent Status for current streak, longest streak, and best day
 - Review a Sunday-first, 365-day GitHub-style heatmap that fits the Dashboard without horizontal scrolling
-- Choose the Heatmap color and which of Heatmap, Graph, and Distribution are visible
+- Use a fixed Indigo Heatmap and choose which of Heatmap, Graph, and Distribution are visible
 - Reorder optional Dashboard cards, Activities, and each Activity's mixed Task/Routine list directly by dragging
 - Compare activity-colored stacked bars across navigable Sunday–Saturday weeks or calendar months
 - See each activity's percentage across navigable calendar Day, Week, or Month periods
@@ -43,10 +43,12 @@ Before changing this project, read workspace `../AGENTS.md`, project `AGENTS.md`
 - Show a silent ringing motion in the existing Timer and Pomodoro completion view, with no sound and no moving Done button
 - Set a first Activity and choose Launch at Login on first launch
 - Choose Hover, Single Click, or Double Click for opening the notch in Settings
-- Choose Hours, Minutes, and Step from the same vertical picker in notch Timer and Manual; History Edit keeps compact Hours/Minutes menus with an adjacent Step control
-- Configure completion Alert, compact Progress, Manual Start/End anchoring, and equally sized, right-aligned Pomodoro Focus/Break/Long/Sessions together in Settings > Timing; Liquid Glass segmented choices use an iOS-style moving selection pill while Classic keeps the native macOS control
-- Switch between the untouched Classic appearance and optimized native Liquid Glass while keeping the existing Work Island palette; Activity cards use the same glass frame as Dashboard, History, and Settings, and the notch uses highly saturated indigo selection, vivid readable actions, and a reflected translucent shell
-- Tune the expanded Liquid Glass notch with smoothly progressive Blur and a persisted physical refractive index; the Convex Squircle lens bends the actual backdrop symmetrically while Frost stays fixed at 6 and Bezel Depth at 0, and moving a slider opens a live preview
+- Use the same fixed 75% motion timing for notch opening and closing
+- Keep every opening and closing frame attached to the screen top and symmetric around the physical notch center, without a scale-up floating effect
+- Choose Hours and Minutes from the same vertical picker in notch Timer and Manual, with one shared Step in Settings > Timing; History Edit keeps compact Hours/Minutes menus with its adjacent Step control
+- Configure completion Alert, compact Progress, Manual Start/End anchoring, shared Timer/Manual Step, and equally sized, right-aligned Pomodoro Focus/Break/Long/Sessions together in Settings > Timing
+- Keep the main Window in the original Classic style while its indigo-tinted segmented selections move with a smooth spring; Glass is limited to the expanded notch, with highly saturated indigo selection, vivid readable actions, and a reflected translucent shell
+- Use fixed Glass optics—Blur 8, neutral Refraction `1.00`, Frost 6, and Bezel Depth 0—without exposing ineffective optical controls in Settings
 - Choose when a Dashboard day starts, from 00:00 through 23:00
 - Turn Launch at Login on or off in Settings
 - Appear in the Dock and Cmd+Tab only while an app window is open
@@ -59,7 +61,7 @@ Before changing this project, read workspace `../AGENTS.md`, project `AGENTS.md`
 
 The current development application is Work Island.app inside the dist.noindex folder.
 
-The current source targets local-development version 0.11.25 build 77. The installed `/Applications/Work Island.app` must be compared with staging after each rebuild; rebuilding `dist.noindex` alone does not update the installed copy.
+The current source targets local-development version 0.11.38 build 90. The installed `/Applications/Work Island.app` must be compared with staging after each rebuild; rebuilding `dist.noindex` alone does not update the installed copy.
 
 The previously documented notarized 0.5.3 friend-beta ZIP is no longer present at its recorded Downloads path. The replaced ad-hoc 0.5.3 Applications bundle is preserved under `dist.previous.noindex`, but it is not a substitute for the notarized ZIP. Build, Developer ID-sign, notarize, staple, and verify a fresh artifact before sharing another direct beta.
 
@@ -69,7 +71,7 @@ If macOS shows a first-launch warning, right-click the app and choose Open.
 
 For normal Swift package development and tests, open Package.swift and run the WorkIsland scheme.
 
-For TestFlight or the Mac App Store, open WorkIsland.xcodeproj and use the Work Island scheme. The Store target uses the permanent bundle identifier `com.shikazeriku.workisland`, version 1.0.0 build 61, App Sandbox, and universal arm64/x86_64 release builds. The project supports macOS 13 and later.
+For TestFlight or the Mac App Store, open WorkIsland.xcodeproj and use the Work Island scheme. The Store target uses the permanent bundle identifier `com.shikazeriku.workisland`, version 1.0.0 build 74, App Sandbox, and universal arm64/x86_64 release builds. The project supports macOS 13 and later.
 
 ## Rebuild the app
 

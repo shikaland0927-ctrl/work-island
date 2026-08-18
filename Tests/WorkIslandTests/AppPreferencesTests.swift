@@ -43,10 +43,10 @@ final class AppPreferencesTests: XCTestCase {
         preferences.appearance = .liquidGlass
         preferences.notchOpenMode = .singleClick
         preferences.recordingMode = .pomodoro
-        preferences.heatmapTint = .green
         preferences.setDayStartHour(4)
         preferences.setTimerDuration(hours: 1, minutes: 35)
         preferences.setManualDuration(hours: 2, minutes: 10)
+        preferences.setDurationMinuteStep(7)
         preferences.manualTimeAnchor = .start
         preferences.setPomodoroConfiguration(
             focusMinutes: 40,
@@ -67,10 +67,11 @@ final class AppPreferencesTests: XCTestCase {
         XCTAssertEqual(restored.appearance, .liquidGlass)
         XCTAssertEqual(restored.notchOpenMode, .singleClick)
         XCTAssertEqual(restored.recordingMode, .pomodoro)
-        XCTAssertEqual(restored.heatmapTint, .green)
+        XCTAssertEqual(restored.heatmapTint, .indigo)
         XCTAssertEqual(restored.dayStartHour, 4)
         XCTAssertEqual(restored.timerDurationMinutes, 95)
         XCTAssertEqual(restored.manualDurationMinutes, 130)
+        XCTAssertEqual(restored.durationMinuteStep, 7)
         XCTAssertEqual(restored.manualTimeAnchor, .start)
         XCTAssertEqual(
             restored.pomodoroConfiguration,
@@ -105,6 +106,8 @@ final class AppPreferencesTests: XCTestCase {
         let defaults = try temporaryDefaults()
         defaults.set(0, forKey: "timerDurationMinutes")
         defaults.set(0, forKey: "manualDurationMinutes")
+        defaults.set(0, forKey: ManualDurationOptions.stepPreferenceKey)
+        defaults.set(999, forKey: "notchOpenSpeedPercent")
         defaults.set("invalid", forKey: "manualTimeAnchor")
         defaults.set(999, forKey: "pomodoroFocusMinutes")
         defaults.set(0, forKey: "pomodoroShortBreakMinutes")
@@ -115,6 +118,11 @@ final class AppPreferencesTests: XCTestCase {
 
         XCTAssertEqual(preferences.timerDurationMinutes, 1)
         XCTAssertEqual(preferences.manualDurationMinutes, 1)
+        XCTAssertEqual(
+            preferences.durationMinuteStep,
+            ManualDurationOptions.defaultMinuteStep
+        )
+        XCTAssertEqual(defaults.integer(forKey: "notchOpenSpeedPercent"), 999)
         XCTAssertEqual(preferences.manualTimeAnchor, .end)
         XCTAssertEqual(preferences.pomodoroConfiguration.focusMinutes, 180)
         XCTAssertEqual(preferences.pomodoroConfiguration.shortBreakMinutes, 1)
@@ -135,6 +143,12 @@ final class AppPreferencesTests: XCTestCase {
             preferences.manualDurationMinutes,
             AppPreferences.timerDurationRange.upperBound
         )
+
+        preferences.setDurationMinuteStep(99)
+        XCTAssertEqual(
+            preferences.durationMinuteStep,
+            ManualDurationOptions.defaultMinuteStep
+        )
     }
 
     func testManualDefaultsTreatNowAsTheEndOfFiveMinutes() throws {
@@ -144,7 +158,34 @@ final class AppPreferencesTests: XCTestCase {
             preferences.manualDurationMinutes,
             ManualDurationOptions.defaultMinuteStep
         )
+        XCTAssertEqual(
+            preferences.durationMinuteStep,
+            ManualDurationOptions.defaultMinuteStep
+        )
+        XCTAssertEqual(ManualDurationOptions.defaultMinuteStep, 5)
         XCTAssertEqual(preferences.manualTimeAnchor, .end)
+    }
+
+    func testNotchSpeedIsFixedAtSeventyFivePercentAndLeavesLegacyKeyUntouched() throws {
+        let defaults = try temporaryDefaults()
+        defaults.set(150, forKey: "notchOpenSpeedPercent")
+        _ = AppPreferences(defaults: defaults)
+
+        XCTAssertEqual(NotchAnimationTiming.fixedSpeedPercent, 75)
+        XCTAssertEqual(
+            NotchAnimationTiming.movementDuration,
+            0.24,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            NotchAnimationTiming.contentResponse,
+            0.32,
+            accuracy: 0.000_001
+        )
+        XCTAssertNil(
+            defaults.object(forKey: ManualDurationOptions.stepPreferenceKey)
+        )
+        XCTAssertEqual(defaults.integer(forKey: "notchOpenSpeedPercent"), 150)
     }
 
     func testAppearanceKeepsClassicAsTheSafeDefault() throws {
@@ -166,33 +207,36 @@ final class AppPreferencesTests: XCTestCase {
         XCTAssertEqual(WorkIslandAppearance.classic.title, "Classic")
         XCTAssertEqual(
             WorkIslandAppearance.liquidGlass.title,
-            "Liquid Glass"
+            "Glass"
         )
     }
 
-    func testNotchGlassDefaultsMatchReferenceWithoutWritingPreferenceKeys() throws {
+    func testNotchGlassUsesFixedBlurEightWithoutWritingPreferenceKeys() throws {
         let defaults = try temporaryDefaults()
         let preferences = AppPreferences(defaults: defaults)
 
         XCTAssertEqual(
             preferences.notchGlassConfiguration,
-            NotchGlassConfiguration(
-                blur: 2,
-                refractiveIndexHundredths: 150
-            )
+            .standard
         )
+        XCTAssertEqual(NotchGlassConfiguration.fixedBlur, 8)
+        XCTAssertEqual(NotchGlassConfiguration.blurScaleMaximum, 12)
         XCTAssertEqual(NotchGlassConfiguration.fixedFrost, 6)
         XCTAssertEqual(NotchGlassConfiguration.fixedBezelDepth, 0)
-        XCTAssertEqual(NotchGlassConfiguration.blurRange, 0...12)
         XCTAssertEqual(
-            NotchGlassConfiguration.refractiveIndexHundredthsRange,
-            100...300
+            NotchGlassConfiguration.fixedRefractiveIndexHundredths,
+            100
         )
+        XCTAssertEqual(preferences.notchGlassConfiguration.blur, 8)
         XCTAssertEqual(preferences.notchGlassConfiguration.frost, 6)
         XCTAssertEqual(preferences.notchGlassConfiguration.bezelDepth, 0)
         XCTAssertEqual(
+            preferences.notchGlassConfiguration.refractiveIndexHundredths,
+            100
+        )
+        XCTAssertEqual(
             preferences.notchGlassConfiguration.refractiveIndex,
-            1.5,
+            1,
             accuracy: 0.000_001
         )
         XCTAssertNil(defaults.object(forKey: "notchGlassFrost"))
@@ -206,35 +250,17 @@ final class AppPreferencesTests: XCTestCase {
         )
     }
 
-    func testNotchGlassPreferencesNormalizePersistAndReset() throws {
+    func testNotchGlassIgnoresLegacyBlurAndRefractionKeys() throws {
         let defaults = try temporaryDefaults()
+        defaults.set(7, forKey: "notchGlassBlur")
+        defaults.set(
+            235,
+            forKey: "notchGlassRefractiveIndexHundredths"
+        )
         let preferences = AppPreferences(defaults: defaults)
 
-        preferences.setNotchGlassConfiguration(
-            blur: 99,
-            refractiveIndexHundredths: 20
-        )
-
-        XCTAssertEqual(
-            preferences.notchGlassConfiguration,
-            NotchGlassConfiguration(
-                blur: 12,
-                refractiveIndexHundredths: 100
-            )
-        )
-
-        preferences.setNotchGlassConfiguration(
-            blur: 7,
-            refractiveIndexHundredths: 235
-        )
-
-        XCTAssertEqual(
-            AppPreferences(defaults: defaults).notchGlassConfiguration,
-            NotchGlassConfiguration(
-                blur: 7,
-                refractiveIndexHundredths: 235
-            )
-        )
+        XCTAssertEqual(preferences.notchGlassConfiguration, .standard)
+        XCTAssertEqual(preferences.notchGlassConfiguration.blur, 8)
         XCTAssertEqual(defaults.integer(forKey: "notchGlassBlur"), 7)
         XCTAssertEqual(
             defaults.integer(
@@ -242,57 +268,43 @@ final class AppPreferencesTests: XCTestCase {
             ),
             235
         )
-
-        preferences.resetNotchGlassConfiguration()
-
-        XCTAssertEqual(preferences.notchGlassConfiguration, .standard)
-        XCTAssertEqual(
-            AppPreferences(defaults: defaults).notchGlassConfiguration,
-            .standard
-        )
     }
 
-    func testLegacyOpticalStrengthKeysDoNotMasqueradeAsRefractiveIndex() throws {
+    func testRemovedOpticalKeysRemainUntouchedAndIgnored() throws {
         let defaults = try temporaryDefaults()
         defaults.set(30, forKey: "notchGlassFrost")
         defaults.set(250, forKey: "notchGlassRefraction")
         defaults.set(40, forKey: "notchGlassBezelDepth")
+        defaults.set(
+            300,
+            forKey: "notchGlassRefractiveIndexHundredths"
+        )
 
         let configuration = AppPreferences(defaults: defaults)
             .notchGlassConfiguration
 
         XCTAssertEqual(configuration.frost, 6)
         XCTAssertEqual(configuration.bezelDepth, 0)
-        XCTAssertEqual(configuration.refractiveIndexHundredths, 150)
+        XCTAssertEqual(configuration.refractiveIndexHundredths, 100)
+        XCTAssertEqual(configuration.refractiveIndex, 1, accuracy: 0.000_001)
         XCTAssertEqual(defaults.integer(forKey: "notchGlassFrost"), 30)
         XCTAssertEqual(defaults.integer(forKey: "notchGlassRefraction"), 250)
         XCTAssertEqual(defaults.integer(forKey: "notchGlassBezelDepth"), 40)
+        XCTAssertEqual(
+            defaults.integer(
+                forKey: "notchGlassRefractiveIndexHundredths"
+            ),
+            300
+        )
     }
 
-    func testNotchGlassPreviewRequestsAreTransientAndRestartable() throws {
+    func testHeatmapTintIsFixedIndigoAndLeavesLegacyKeyUntouched() throws {
         let defaults = try temporaryDefaults()
+        defaults.set("green", forKey: "heatmapTint")
         let preferences = AppPreferences(defaults: defaults)
 
-        XCTAssertFalse(preferences.isNotchGlassPreviewRequested)
-        XCTAssertEqual(preferences.notchGlassPreviewRequestRevision, 0)
-
-        preferences.beginNotchGlassPreview()
-        XCTAssertTrue(preferences.isNotchGlassPreviewRequested)
-        XCTAssertEqual(preferences.notchGlassPreviewRequestRevision, 1)
-
-        preferences.beginNotchGlassPreview()
-        XCTAssertTrue(preferences.isNotchGlassPreviewRequested)
-        XCTAssertEqual(preferences.notchGlassPreviewRequestRevision, 2)
-
-        preferences.endNotchGlassPreview()
-        XCTAssertFalse(preferences.isNotchGlassPreviewRequested)
-        XCTAssertEqual(preferences.notchGlassPreviewRequestRevision, 2)
-        XCTAssertNil(
-            defaults.object(forKey: "isNotchGlassPreviewRequested")
-        )
-        XCTAssertNil(
-            defaults.object(forKey: "notchGlassPreviewRequestRevision")
-        )
+        XCTAssertEqual(preferences.heatmapTint, .indigo)
+        XCTAssertEqual(defaults.string(forKey: "heatmapTint"), "green")
     }
 
     func testDayStartRejectsInvalidStoredAndNewValues() throws {

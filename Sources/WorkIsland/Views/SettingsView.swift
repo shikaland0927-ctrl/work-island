@@ -5,9 +5,6 @@ import SwiftUI
 struct SettingsControlLayout {
     static let standardTrailingWidth: CGFloat = 220
     static let notchOpenWidth: CGFloat = 300
-    static let notchGlassControlWidth: CGFloat = 300
-    static let notchGlassSliderWidth: CGFloat = 246
-    static let notchGlassValueWidth: CGFloat = 36
     static let pomodoroMenuWidth: CGFloat = 76
     static let pomodoroMenuHeight: CGFloat = 24
     static let pomodoroFieldWidth = pomodoroMenuWidth
@@ -30,28 +27,20 @@ struct SettingsView: View {
 
 struct SettingsPageView: View {
     var body: some View {
-        ScrollView {
+        MainPageScrollContainer(
+            maximumContentWidth: MainPageLayout.standardMaximumContentWidth
+        ) {
             SettingsContent()
-                .padding(28)
-                .frame(maxWidth: 900, alignment: .leading)
         }
         .navigationTitle("Settings")
     }
 }
 
 private struct SettingsContent: View {
-    @EnvironmentObject private var preferences: AppPreferences
-
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             SettingsCard(title: "General", systemImage: "gearshape") {
                 GeneralSettingsView()
-            }
-
-            SettingsCard(title: "Notch Glass", systemImage: "drop") {
-                NotchGlassSettingsView {
-                    preferences.beginNotchGlassPreview()
-                }
             }
 
             SettingsCard(title: "Timing", systemImage: "timer") {
@@ -64,9 +53,6 @@ private struct SettingsContent: View {
             ) {
                 DashboardSettingsView()
             }
-        }
-        .onDisappear {
-            preferences.endNotchGlassPreview()
         }
     }
 }
@@ -167,13 +153,13 @@ private struct GeneralSettingsView: View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsRow {
                 SettingsControlLabel(
-                    title: "Appearance",
+                    title: "Notch Style",
                     detail: appearanceDetail,
                     systemImage: "circle.lefthalf.filled"
                 )
             } control: {
                 WorkSegmentedPicker(
-                    accessibilityName: "Appearance",
+                    accessibilityName: "Notch Style",
                     selection: $preferences.appearance,
                     options: WorkIslandAppearance.allCases,
                     title: { $0.title }
@@ -231,7 +217,7 @@ private struct GeneralSettingsView: View {
 
             SettingsRow {
                 SettingsControlLabel(
-                    title: "Notch",
+                    title: "Open Notch",
                     detail: notchOpenDescription,
                     systemImage: "macbook"
                 )
@@ -269,9 +255,9 @@ private struct GeneralSettingsView: View {
     private var appearanceDetail: String {
         switch preferences.appearance {
         case .classic:
-            return "Keep the original Work Island style."
+            return "Use the original expanded-notch style."
         case .liquidGlass:
-            return "Add translucent glass while keeping the current colors."
+            return "Use Glass for the expanded notch."
         }
     }
 
@@ -283,114 +269,6 @@ private struct GeneralSettingsView: View {
             return "Click the notch once to open it."
         case .doubleClick:
             return "Double-click the notch to open it."
-        }
-    }
-}
-
-private struct NotchGlassSettingsView: View {
-    @EnvironmentObject private var preferences: AppPreferences
-    let onAdjustment: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                Text("Expanded notch in Liquid Glass only.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Button("Reset") {
-                    preferences.resetNotchGlassConfiguration()
-                }
-                .buttonStyle(.borderless)
-                .disabled(
-                    preferences.notchGlassConfiguration == .standard
-                )
-            }
-
-            Divider()
-
-            sliderRow(
-                title: "Blur",
-                detail: "Soften the desktop behind the notch.",
-                systemImage: "drop",
-                value: preferences.notchGlassConfiguration.blur,
-                range: NotchGlassConfiguration.blurRange,
-                onChange: {
-                    onAdjustment()
-                    preferences.setNotchGlassConfiguration(blur: $0)
-                }
-            )
-
-            Divider()
-
-            sliderRow(
-                title: "Refraction",
-                detail: "Set the glass refractive index.",
-                systemImage: "sparkles",
-                value: preferences.notchGlassConfiguration
-                    .refractiveIndexHundredths,
-                range: NotchGlassConfiguration
-                    .refractiveIndexHundredthsRange,
-                step: 5,
-                valueText: {
-                    String(format: "%.2f", Double($0) / 100)
-                },
-                onChange: {
-                    onAdjustment()
-                    preferences.setNotchGlassConfiguration(
-                        refractiveIndexHundredths: $0
-                    )
-                }
-            )
-        }
-    }
-
-    private func sliderRow(
-        title: String,
-        detail: String,
-        systemImage: String,
-        value: Int,
-        range: ClosedRange<Int>,
-        step: Int = 1,
-        valueText: @escaping (Int) -> String = { String($0) },
-        onChange: @escaping (Int) -> Void
-    ) -> some View {
-        let displayedValue = valueText(value)
-
-        return SettingsRow {
-            SettingsControlLabel(
-                title: title,
-                detail: detail,
-                systemImage: systemImage
-            )
-        } control: {
-            HStack(spacing: 10) {
-                Slider(
-                    value: Binding(
-                        get: { Double(value) },
-                        set: { onChange(Int($0.rounded())) }
-                    ),
-                    in: Double(range.lowerBound)...Double(range.upperBound),
-                    step: Double(step)
-                )
-                .frame(width: SettingsControlLayout.notchGlassSliderWidth)
-                .accessibilityLabel(title)
-                .accessibilityValue(displayedValue)
-
-                Text(displayedValue)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(
-                        width: SettingsControlLayout.notchGlassValueWidth,
-                        alignment: .trailing
-                    )
-            }
-            .frame(
-                width: SettingsControlLayout.notchGlassControlWidth,
-                alignment: .trailing
-            )
         }
     }
 }
@@ -465,6 +343,33 @@ private struct TimingSettingsView: View {
 
             SettingsRow {
                 SettingsControlLabel(
+                    title: "Step",
+                    detail: "Set the minute interval for Timer and Manual.",
+                    systemImage: "arrow.up.and.down.text.horizontal"
+                )
+            } control: {
+                Picker("Step", selection: durationStepBinding) {
+                    ForEach(
+                        ManualDurationOptions.minuteStepRange,
+                        id: \.self
+                    ) { value in
+                        Text("\(value) min")
+                            .tag(value)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(
+                    width: SettingsControlLayout.standardTrailingWidth,
+                    alignment: .trailing
+                )
+                .accessibilityLabel("Minute step")
+            }
+
+            Divider()
+
+            SettingsRow {
+                SettingsControlLabel(
                     title: "Pomodoro",
                     detail: "Set focus and break lengths used by the notch.",
                     systemImage: "repeat.circle"
@@ -473,6 +378,13 @@ private struct TimingSettingsView: View {
                 PomodoroSettingsControls()
             }
         }
+    }
+
+    private var durationStepBinding: Binding<Int> {
+        Binding(
+            get: { preferences.durationMinuteStep },
+            set: { preferences.setDurationMinuteStep($0) }
+        )
     }
 }
 
@@ -740,30 +652,6 @@ private struct DashboardSettingsView: View {
                     style: .continuous
                 )
             )
-
-            HStack(spacing: 14) {
-                Text("Heatmap")
-                    .font(.headline)
-
-                Spacer()
-
-                Picker("Color", selection: $preferences.heatmapTint) {
-                    ForEach(HeatmapTint.allCases) { tint in
-                        Label {
-                            Text(tint.title)
-                        } icon: {
-                            Circle()
-                                .fill(tint.color)
-                        }
-                        .tag(tint)
-                    }
-                }
-                .labelsHidden()
-                .frame(
-                    width: SettingsControlLayout.standardTrailingWidth,
-                    alignment: .trailing
-                )
-            }
         }
     }
 }

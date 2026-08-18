@@ -41,9 +41,13 @@ struct DashboardAnalyticsLayout {
     static let distributionPickerWidth: CGFloat = 250
     static let periodControlSpacing: CGFloat = 14
     static let navigationWidth: CGFloat = 44
+    static let distributionLegendActivityMaximumWidth: CGFloat = 180
+    static let distributionLegendColumnSpacing: CGFloat = 16
 
     static var trailingPeriodControlsWidth: CGFloat {
-        distributionPickerWidth + periodControlSpacing + navigationWidth
+        distributionPickerWidth
+            + periodControlSpacing
+            + navigationWidth
     }
 
     static var pickerTrailingInset: CGFloat {
@@ -62,7 +66,9 @@ struct DashboardView: View {
     @EnvironmentObject private var preferences: AppPreferences
 
     var body: some View {
-        ScrollView {
+        MainPageScrollContainer(
+            maximumContentWidth: MainPageLayout.dashboardMaximumContentWidth
+        ) {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(
                     alignment: .top,
@@ -71,7 +77,7 @@ struct DashboardView: View {
                     TotalCard()
                         .frame(width: DashboardSummaryLayout.totalCardWidth)
 
-                    DashboardStatsCard()
+                    DashboardStatusCard()
                         .frame(maxWidth: .infinity)
                 }
 
@@ -81,8 +87,6 @@ struct DashboardView: View {
                     }
                 }
             }
-            .padding(28)
-            .frame(maxWidth: 1_060, alignment: .leading)
         }
         .navigationTitle("Dashboard")
     }
@@ -148,38 +152,31 @@ private struct TotalCard: View {
 }
 
 private struct TotalCardSurface: ViewModifier {
-    @EnvironmentObject private var preferences: AppPreferences
-
-    @ViewBuilder
     func body(content: Content) -> some View {
-        if preferences.appearance == .liquidGlass {
-            content.workCard(tint: .indigo, tintOpacity: 0.62)
-        } else {
-            content
-                .background(
-                    LinearGradient(
-                        colors: [
-                            Color.indigo,
-                            Color.blue.opacity(0.82)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    in: RoundedRectangle(
-                        cornerRadius: WorkAppearanceStyle.cardCornerRadius,
-                        style: .continuous
-                    )
+        content
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color.indigo,
+                        Color.blue.opacity(0.82)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(
+                    cornerRadius: WorkAppearanceStyle.cardCornerRadius,
+                    style: .continuous
                 )
-                .shadow(
-                    color: Color.indigo.opacity(0.22),
-                    radius: 18,
-                    y: 8
-                )
-        }
+            )
+            .shadow(
+                color: Color.indigo.opacity(0.22),
+                radius: 18,
+                y: 8
+            )
     }
 }
 
-private struct DashboardStatsCard: View {
+private struct DashboardStatusCard: View {
     @EnvironmentObject private var store: WorkTimerStore
     @EnvironmentObject private var preferences: AppPreferences
 
@@ -191,7 +188,7 @@ private struct DashboardStatsCard: View {
             )
 
             VStack(alignment: .leading, spacing: 16) {
-                Text("Stats")
+                Text("Status")
                     .font(.title3.weight(.semibold))
 
                 HStack(spacing: DashboardSummaryLayout.metricSpacing) {
@@ -756,10 +753,19 @@ private struct DistributionLegend: View {
     let totalDuration: TimeInterval
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 13) {
+        Grid(
+            alignment: .leading,
+            horizontalSpacing: DashboardAnalyticsLayout
+                .distributionLegendColumnSpacing,
+            verticalSpacing: 13
+        ) {
             ForEach(totals) { total in
-                HStack(spacing: 10) {
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                GridRow(alignment: .center) {
+                    HStack(spacing: 10) {
+                        RoundedRectangle(
+                            cornerRadius: 3,
+                            style: .continuous
+                        )
                         .fill(
                             TaskColorPalette.color(
                                 for: total.taskID,
@@ -768,11 +774,15 @@ private struct DistributionLegend: View {
                         )
                         .frame(width: 12, height: 12)
 
-                    Text(total.taskName)
-                        .font(.subheadline.weight(.medium))
-                        .lineLimit(1)
-
-                    Spacer(minLength: 12)
+                        Text(total.taskName)
+                            .font(.subheadline.weight(.medium))
+                            .lineLimit(1)
+                    }
+                    .frame(
+                        maxWidth: DashboardAnalyticsLayout
+                            .distributionLegendActivityMaximumWidth,
+                        alignment: .leading
+                    )
 
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(percentage(for: total.duration))
@@ -781,6 +791,7 @@ private struct DistributionLegend: View {
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
+                    .gridColumnAlignment(.trailing)
                 }
             }
         }
@@ -898,26 +909,12 @@ private struct DashboardPeriodNavigation: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Button {
-                periodOffset -= 1
-            } label: {
-                Image(systemName: "chevron.left")
-                    .frame(width: 20, height: 20)
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel("Previous period")
-            .help("Previous")
+            previousButton
+                .buttonStyle(.borderless)
 
             if periodOffset < 0 {
-                Button {
-                    periodOffset += 1
-                } label: {
-                    Image(systemName: "chevron.right")
-                        .frame(width: 20, height: 20)
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("Next period")
-                .help("Next")
+                nextButton
+                    .buttonStyle(.borderless)
             } else {
                 Color.clear
                     .frame(width: 20, height: 20)
@@ -929,6 +926,29 @@ private struct DashboardPeriodNavigation: View {
             alignment: .leading
         )
     }
+
+    private var previousButton: some View {
+        Button {
+            periodOffset -= 1
+        } label: {
+            Image(systemName: "chevron.left")
+                .frame(width: 20, height: 20)
+        }
+        .accessibilityLabel("Previous period")
+        .help("Previous")
+    }
+
+    private var nextButton: some View {
+        Button {
+            periodOffset += 1
+        } label: {
+            Image(systemName: "chevron.right")
+                .frame(width: 20, height: 20)
+        }
+        .accessibilityLabel("Next period")
+        .help("Next")
+    }
+
 }
 
 private struct DashboardPeriodControls: View {

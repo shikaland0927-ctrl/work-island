@@ -1,6 +1,6 @@
 # Work Island — Critical Lessons and Prevention Rules
 
-Last consolidated: 2026-08-14
+Last consolidated: 2026-08-16
 
 This is not a chronological diary. It is ranked by potential damage and recurrence. Rules marked **STOP** must be resolved before proceeding. Repeated failure families are intentionally emphasized because they caused several regressions during this project.
 
@@ -21,7 +21,7 @@ Why it happened:
 Prevention:
 
 1. Prefer automated tests and let the user perform visual/functional acceptance.
-2. If UI automation is explicitly required, use all three: unique bundle identifier, explicit app-owned storage override, and an isolated preferences suite/domain.
+2. If UI automation is explicitly required, use all three: unique bundle identifier, explicit app-owned storage override, and an isolated preferences suite/domain. Embed these as app-owned QA metadata, make `.qa.` bundles fail closed when any isolation value is missing or unsafe, and make production bundle identifiers ignore QA metadata.
 3. Before the first state-changing UI action, fully stop every Work Island process and snapshot both the exact JSON and the complete production defaults domain.
 4. Before each UI action, re-read the focused bundle and exact control target.
 5. Afterward, compare JSON semantically and byte-wise where appropriate, and compare the entire preferences domain—not just intended keys.
@@ -107,8 +107,8 @@ Thus a generated map and a non-empty filter array were not visual evidence.
 Public native glass can sample the cross-window backdrop, but it does not expose
 the sampled texture to an arbitrary Convex Squircle displacement shader. Exact
 CSS/SVG-style custom displacement of the raw desktop would require screen
-capture or private compositor APIs, neither of which is appropriate here. The
-current public-API correction therefore keeps index `1.00` neutral and maps the
+capture or private compositor APIs, neither of which is appropriate here. An
+interim public-API correction therefore kept index `1.00` neutral and mapped the
 normalized Fresnel reflectance `((n − 1) / (n + 1))²` to the opacity of a
 separate untinted native Clear Glass optical surface. This visibly changes
 Apple-owned lensing/scattering while Blur remains independent; it is a native
@@ -116,12 +116,31 @@ approximation, not a claim of exact physical Convex Squircle displacement.
 Frost and Bezel Depth remain fixed at `6` and `0`, and the incompatible old
 cosmetic Refraction value is not silently reinterpreted.
 
+On 2026-08-15 the user retired Refraction as an adjustable product feature.
+The preference model still fixes it at the neutral compatibility index `1.00`,
+removes the Settings row and dedicated rendered-QA fixture, and leaves every
+old Refraction key untouched but ignored. This decision superseded the earlier
+native-optical approximation; do not reintroduce a Refraction control without a
+new explicit product decision.
+
+Later that day the user explicitly authorized one narrower experiment: place an
+`NSVisualEffectView` with `.behindWindow` blending under a separate non-root
+child layer whose `backgroundFilters` contains the symmetric displacement map.
+Version 0.11.30 implemented the fixed, non-persisted lens and automated tests
+proved its hierarchy, filter input, symmetry, and crop geometry. The user's
+physical check still showed no visible change. Version 0.11.31 removed the
+render layer and its preview machinery instead of retaining ineffective
+compositor work. This is now a confirmed dead end for this app architecture;
+do not retry it without a materially different source of backdrop pixels.
+
 The first Blur correction still switched between identity, clear, regular, and
 several Material types at integer boundaries. Even when each mapping was
 reasonable in isolation, `0` to `1` visibly jumped because the compositor path
 changed. The final mapping keeps one native glass type and one Material type,
 then fades both continuously with a low-end-weighted curve. Blur `0 / 1 / 2 /
-12` now maps native glass to approximately `0% / 2.1% / 6.2% / 100%`.
+12` mapped native glass to approximately `0% / 2.1% / 6.2% / 100%`. The user
+later fixed Blur at `8` and removed the control, so the app now evaluates only
+that accepted point and leaves the old Blur key untouched.
 
 Prevention:
 
@@ -147,6 +166,14 @@ Prevention:
 - State public-API limits explicitly. Native glass may own backdrop sampling and
   lensing without exposing that sampled backdrop to a custom shader; do not call
   a native optical-strength approximation exact Convex Squircle displacement.
+- Keep the retired Refraction preference fixed at `1.00` and removed from
+  Settings. Preserve old preference keys as inert compatibility data rather than
+  deleting, migrating, or rewriting them on launch. Blur is likewise fixed at
+  `8`; any explicitly approved optical experiment must use separate internal
+  constants and must not silently revive those old keys.
+- Generate a fixed displacement bitmap once, then center and crop it during
+  notch animation. Do not rebuild a 500×190 map on every animated layout or
+  one-second Timeline update.
 - Never switch native glass or Material types between adjacent slider integers.
   Keep one rendering path and interpolate opacity/radius across the full range.
 - Unit-test endpoints and default invariants, but never claim those numeric tests
@@ -211,14 +238,15 @@ Do not reintroduce Window Start/Pause/Resume/Finish/Complete/Discard or Window M
 
 ### Shared semantics do not require one interaction UI everywhere
 
-The notch-style vertical Hours/Minutes/Step picker was once applied to a larger Manual form, felt unnatural there, and was reverted. On 2026-08-12, the user explicitly replaced that form with inline notch Add and requested the exact Timer duration UI for Manual. The current explicit product direction supersedes the earlier surface-specific decision.
+The notch-style vertical Hours/Minutes/Step picker was once applied to a larger Manual form, felt unnatural there, and was reverted. On 2026-08-12, the user explicitly replaced that form with inline notch Add and requested the exact Timer duration UI for Manual. On 2026-08-15, Step itself moved out of both notch pickers into Settings while their Hours/Minutes subtree stayed shared.
 
 Current rule:
 
-- Notch Timer and Manual: the exact same vertical Hours/Minutes/Step subtree.
-- History Edit: direct compact Hours/Minutes menus plus adjacent Step.
+- Notch Timer and Manual: the exact same vertical Hours/Minutes subtree with no local Step column.
+- Settings > Timing owns one `1–59` minute Step for both modes. Keep the compatible `manualMinuteStep` key, route all readers and writers through `AppPreferences`, and do not rewrite current durations merely because Step changes.
+- History Edit: direct compact Hours/Minutes menus plus its adjacent Step, backed by that same preference.
 - Manual uses now as its anchor; Settings > Timing owns Start/End and defaults to End. Do not restore Date, Time, or Set As inside notch Add without a new product decision.
-- The Step value and snapping semantics remain shared across both presentations.
+- A shared value does not require duplicating its configuration UI on every consumer.
 
 ### Terminology is a UI contract, not a schema rewrite request
 
@@ -255,6 +283,8 @@ Failures included:
 - an explicit width applied to the native Pomodoro Picker still leaving its AppKit bezel at intrinsic width, despite the geometry test passing.
 - replacing that Picker with a borderless custom Menu fixed ownership of the painted width but also removed the familiar native selection bezel, changing visual style beyond the requested spacing fix.
 - returning `NSPopUpButton` directly from `NSViewRepresentable` still let its intrinsic content size exceed the 76-point SwiftUI wrapper; the bezels overlapped and erased the intended 10-point gaps.
+- a full-width `Spacer` inside every Distribution legend row pushed short Activity names and their percentages to opposite edges even though both belonged to one compact data pair.
+- Activity-page constants matched the shared `28 pt` margin and `900 pt` cap, but applying `.contentMargins(..., for: .scrollContent)` around a generic native `List` did not move its actual row content. The rendered row retained its native 8/9-point horizontal gutters and began at the pane top, so Activity cards alone missed the sibling pages' painted left, right, and top edges while the numeric test still passed.
 
 Prevention:
 
@@ -265,19 +295,25 @@ Prevention:
 - Do not assume `.frame(width:)` stretches a native Picker's AppKit bezel. For a layout-only correction, host a native `NSPopUpButton` directly so its painted bounds can be fixed while preserving the standard bezel; use a custom label/background only when a style change is explicitly intended.
 - Preserve the existing control class, bezel, and interaction style when the request is only about alignment or spacing. Treat native-to-custom replacement as a separate visual product change.
 - A SwiftUI `.frame` is not proof that a directly represented AppKit control adopted that size. Put the control inside a fixed-intrinsic-size `NSView`, constrain all four child edges, and lower horizontal compression resistance so the painted bezel is forced to the container bounds.
+- When only scroll content needs a margin or width cap, keep the scroll container itself full-width and apply content margins inside it. Padding or constraining the outer `List` also moves its native scrollbar and makes sibling pages look misaligned.
+- For a native `List`, verify that the chosen modifier changes the rendered row frame; do not infer that a shared scroll-margin value is consumed. Keep the List full-pane for its scrollbar, align each actual row through one shared wrapper that accounts for the native row gutters and reserved scroller width, and compare offscreen rendered frames at both constrained and capped widths.
+- When sibling pages must start at one height, derive every top content inset—including a native List's scroll-content margin—from one shared constant. Four repeated literal `28` values can look correct until one path changes independently.
+- For paired label/value legends, use intrinsic Grid columns with an explicit maximum label width instead of a row-filling `Spacer`; alignment should not create unrelated visual distance.
 - Compare screenshots or user feedback against painted edges, not only frame constants.
 - Add geometry regressions for critical constants and shared subtrees, but treat them as structural checks rather than proof of painted output.
 
 ### Conditional controls require reserved geometry
 
-Activity/Item/Note rows and Start/Pause/Finish/Complete buttons shifted when recording state changed. Button ratios also ignored inter-button gaps.
+Activity/Item/Note rows and Start/Pause/Finish/Complete buttons shifted when recording state changed. Button ratios also ignored inter-button gaps. In 0.11.34, the idle Activity picker inherited a `34 pt` control height while the active Activity/clock identity inherited a different implicit height; their shared parent therefore centered the painted Activity label on slightly different pixel origins when Start was pressed.
 
 Prevention:
 
 - Prefer one stable row whose content locks or changes in place over conditional replacement of whole row structures.
+- When a state change must swap row subtrees, give idle, active, and completion variants one shared explicit row height. Do not let each state's tallest child determine its vertical origin independently.
 - Reserve the final width for state-specific controls.
 - Include gaps when computing 1:1:2 or equal-width button layouts.
 - A fixed-width digital clock must budget its longest semantic value.
+- Pair the structural height regression with actual before/after screenshots and painted-pixel comparison; a matching constant alone cannot prove zero visible movement.
 
 ### Timer and Pomodoro must share the exact clock subtree
 
@@ -300,29 +336,51 @@ Prevention:
 - Keep the centralized 840×540 minimum and 960×650 default synchronized between SwiftUI and AppKit.
 - Do not make a main Window wider solely to hide one oversized sheet; size the sheet or row appropriately.
 
-### Native glass must live on stable, bounded surfaces
+### Native List scrollbar visibility can change painted card width
 
-Applying native Liquid Glass to the full Window background, every repeated child control, and surfaces rebuilt inside periodic `TimelineView` closures made the interface feel heavy. Multiple decorative shadows compounded the compositor work even when Swift logic was idle.
+Activities originally let the native `List` auto-hide its vertical scroller.
+With too few Activities to scroll, the list reclaimed the scroller strip and
+painted cards wider than they were once scrolling became possible. Matching
+only the nominal content margins did not stabilize the painted right edge.
 
 Prevention:
 
-- Reserve native `glassEffect` for a small number of stable large cards/shells and the selected segmented-control pill.
+- Keep the native vertical scroller allocated even when the Activity list is too
+  short to scroll; do not infer width stability from equal SwiftUI margins.
+- Compare the same Window width with both non-scrollable and scrollable fixtures.
+- Dashboard, Activities, History, and Settings must use the same 28-point
+  scroll-content top inset semantics so their first visible content shares one
+  top edge.
+- Test the painted first-row frame itself after the List has completed AppKit
+  layout. A test that compares only declared margins and width caps can pass
+  while `.contentMargins` is ineffective for the native row subtree.
+
+### Native glass must remain inside the expanded notch
+
+Applying native Liquid Glass to the full Window background, every repeated child control, and surfaces rebuilt inside periodic `TimelineView` closures made the interface feel heavy. Safari-like period arrows also expanded the visual scope beyond the user's eventual choice. On 2026-08-15 the user fixed the product boundary: Liquid Glass belongs only to the expanded notch; the main Window stays Classic.
+
+Prevention:
+
+- Keep native `glassEffect` and Liquid-only Material fallbacks out of every Window background, card, sidebar surface, button, segmented choice, and period arrow. A future Window-glass experiment requires a new explicit product decision.
 - Keep the native glass surface outside periodic `TimelineView` content so one-second analytics/notch updates do not recreate it.
 - Render repeated notch chips and secondary buttons with lightweight tinted fills, borders, and one restrained shadow.
-- Avoid a full-window Material layer and duplicate glow shadows unless profiling shows they are justified.
+- Do not reuse a Glass action surface's semantic tint as its label color. Start, Add, Finish, Pause, Resume, and Discard use one high-contrast white label treatment with bold weight and a restrained dark shadow. Keep this treatment Glass-only so Classic action colors do not drift. Give actions separate high-saturation Glass surfaces: Start/Resume green, Pause orange, Finish indigo, and Discard red. Resume must alias Start's RGB and tint opacity directly rather than duplicate literals; unit-test exact equality so later tuning cannot make them diverge.
+- Keep the expanded notch's native glass shell stable and avoid duplicate glow shadows unless profiling shows they are justified.
 - SwiftUI's public native `Glass` surface exposes regular/clear/identity, tint, and interactivity—not arbitrary CSS-style Frost, Blur, Refraction, or Bezel Depth values. Public Core Animation/Core Image filters do not automatically gain cross-window backdrop access, so they cannot be assumed to supply a missing custom-displacement stage. Keep unsupported controls out of Settings instead of assigning them misleading decorative effects.
-- Keep the base tint/reflection and Blur independent from the Refraction control. If Refraction scales a native optical surface, use an untinted surface, a neutral endpoint, a continuous mapping, and wording that describes it as a native approximation.
+- Refraction is no longer a product control. Keep the neutral `1.00` compatibility value separate from fixed Blur `8`, and never render an optical layer merely because an old preference key remains. The failed fixed backdrop-lens experiment was removed after the user confirmed no visible change.
+- Graph and Distribution deliberately use the established Classic borderless chevrons in every notch-style mode. Do not retain canceled native `.glass` button code as an inactive appearance branch.
 - Verify both interaction feel and idle/active CPU with an isolated bundle before installing. A successful compile or geometry test does not prove compositor responsiveness.
 - Transparency alone does not create a rich glass look. Native glass derives much of its luminosity and color from the content behind it, so a small notch over a dark or uniform menu-bar background cannot match a high-key reference render automatically.
 - Compare regular and clear glass over the same realistic fixture before choosing. Clear can expose more background but also wash out dense white labels; prefer regular plus restrained local reflection when legibility wins.
 
-### Liquid experiments must not leak into Classic
+### Liquid experiments must not leak into the Window or Classic notch
 
-A shared moving-selection control and per-Activity notch tint were initially applied to both appearance modes. That changed Classic even though the request was to add an optional Liquid Glass appearance.
+A shared moving-selection control and per-Activity notch tint were initially applied to both appearance modes. Later, Liquid materials spread across the Window even though the final accepted scope is the notch only. Motion and material are separate decisions: the Window now intentionally shares a smooth moving selection surface, but its color, fill, border, background, and buttons remain Classic.
 
 Prevention:
 
-- Branch at the outermost shared component: Classic should render the established native control/surface unchanged, while only Liquid enters the custom glass path.
+- Branch at the notch boundary, not inside Window components. `appearanceStyle` may affect `TimerIslandView`; ordinary Window components must not read it for rendering.
+- For the intentional smooth Window selection, use a neutral Classic surface plus matched-geometry spring motion. Do not equate “Liquid-like movement” with a glass material or Liquid color treatment.
 - Any Liquid-only label contrast, tint, border, shadow, or transparency rule must include an explicit appearance condition; a semantic color parameter alone is not sufficient.
 - When no source history is available, preserve a known prior app bundle, give it an isolated identity/data/defaults domain, and compare the same fixture side by side before accepting Classic compatibility.
 - Treat “Classic unchanged” as its own acceptance requirement, not as an inference from Liquid looking correct.
@@ -354,6 +412,38 @@ Prevention:
 - Reconcile global pointer position against the final frame while expanded.
 - Collapse immediately enough to feel direct; never add an unbounded suppression path.
 - Physical safe-area geometry must determine collapsed sizing instead of guessed notch constants.
+
+### Notch motion timing must stay identical in both directions
+
+A percentage label is misleading if it scales only the AppKit frame or only the SwiftUI content transition. It can also invert user expectations if a higher “speed” multiplies duration.
+
+The former adjustable percentage was retired, and the user later selected a fixed
+`75%` on 2026-08-16. The app now fixes panel movement at `0.24 s` and content
+response at `0.32 s` and ignores the legacy preference key.
+
+A later motion regression survived mathematically centered frame tests because
+`NSWindow` integralized a fractional origin and width independently. On the
+1470-point built-in display, the physical notch center is `735.5`, not the
+screen midpoint `735.0`; old live bounds placed an expanded timer at center
+`735.0` and a collapsed Manual notch at `734.5`. The root SwiftUI spring and
+`0.97` insertion scale simultaneously animated content geometry, creating the
+brief impression that the shell floated before attaching. Manual Add could
+also replace its Details subtree before the panel finished collapsing. A
+second Manual regression appeared when Add was pressed after changing duration:
+the duration popover dismissal, Add-state replacement, and shell collapse all
+started together, so the notch appeared to shrink incorrectly.
+
+Prevention:
+
+- Apply the same fixed timing to opening and closing. Do not leave a hidden close-only duration.
+- Keep the fixed value out of Settings and leave the old preference key untouched.
+- Use the physical notch gap midpoint from the auxiliary top areas as the horizontal anchor; fall back to screen center only when no physical notch geometry exists.
+- Derive both integral horizontal edges from that single anchor and keep the top edge fixed. Do not pass independently fractionalized origin/width values to `NSWindow`, because its rounding can shift alternating frames by 0.5–1 point.
+- Let the AppKit panel animation own shell geometry. SwiftUI content may cross-fade, but a root spring or insertion scale must not animate the shell or imply a detached/floating start.
+- When an action both changes content state and collapses the panel, keep the outgoing subtree stable until the collapse transition finishes; Manual Details must not reflow into Activities during shrink.
+- When an action originates while its popover is open, own that presentation state in the parent and dismiss the popover before scheduling the shell collapse. Do not make popover teardown and panel resizing compete in the same frame.
+- For Manual Add confirmation, morph one label instead of overlapping old/new labels, lock duplicate input, keep the outgoing subtree stable, and reset it only after collapse completes. Product-timed closure must explicitly set the panel collapsed after the confirmed hold; it must not depend on hover exit.
+- Test both numeric timing constants and sample the full geometry path, then compare actual Core Graphics window bounds after real isolated actions. Physical feel still requires the user's pointer check.
 
 ### Menus are part of notch interaction even outside the panel frame
 
@@ -470,6 +560,7 @@ The historical notarized ZIP was later absent even though its creation had been 
 
 ## P1 — App Store and TestFlight
 
+- Read `AppStore/Submission Checklist.md` completely before running any Store build or archive command, even for unsigned local QA. On 2026-08-15 the unsigned build 65 archive was started before this read; no upload or account change occurred, but the order was wrong. Refresh the checklist and current build number first.
 - Developer ID ZIPs are not Store packages. Store distribution requires the permanent bundle ID, Xcode target/archive, Apple Distribution signing, App Sandbox, privacy resources, metadata, and container migration plan.
 - A development-signed archive does not prove App ID registration, Distribution identity/profile availability, or App Store Connect readiness.
 - Local signing may work while Xcode account authentication is stale. Resolve account-manager warnings before upload.
@@ -490,6 +581,7 @@ The historical notarized ZIP was later absent even though its creation had been 
 - Quote every path containing spaces.
 - Never place Markdown backticks inside a double-quoted shell argument; zsh executes them as command substitution. Use a single-quoted literal search pattern or escape-free fixed-string input instead.
 - A computed `some View` helper that contains local declarations and builds a modifier chain needs an explicit `return` or `@ViewBuilder`; add the annotation when extracting a SwiftUI branch instead of waiting for opaque-return inference to fail.
+- Core Image does not expose every documented filter input as a Swift global constant. In the macOS 26.5 SDK, `kCIInputDisplacementImageKey` was unavailable even though `CIDisplacementDistortion` and its `inputDisplacementImage` input exist. Use the filter's declared input key, keep it centralized, and cover the KVC input with a unit test instead of assuming a C constant is imported.
 - SwiftPM, Clang, iconutil, Keychain, Spotlight, and signing tools can fail misleadingly inside a sandbox. Repeat only the smallest necessary command with approved host access.
 - `iconutil` can report `Invalid Iconset` in a restricted environment even when the iconset is valid.
 - Avoid recursive traversal of protected Store container paths; it can hang. Use app-provided Import/Export and explicit paths.

@@ -12,20 +12,55 @@ enum ApplicationVisibilityPolicy {
     }
 }
 
-enum ApplicationQAConfiguration {
-    static var showsGlassRefractionFixture: Bool {
-        Bundle.main.object(
-            forInfoDictionaryKey: "WorkIslandGlassRefractionFixture"
-        ) as? Bool == true
-    }
-}
-
 enum LaunchAtLoginPolicy {
     static func canManage(bundleURL: URL) -> Bool {
         bundleURL
             .deletingLastPathComponent()
             .standardizedFileURL
             .path == "/Applications"
+    }
+}
+
+struct ApplicationQAIsolationConfiguration: Equatable {
+    static let storagePathInfoKey = "WorkIslandQAStoragePath"
+    static let defaultsSuiteInfoKey = "WorkIslandQADefaultsSuite"
+    static let keepsNotchExpandedInfoKey = "WorkIslandQAKeepsNotchExpanded"
+
+    let storageURL: URL
+    let defaultsSuiteName: String
+    let keepsNotchExpanded: Bool
+
+    static var current: ApplicationQAIsolationConfiguration? {
+        resolve(
+            bundleIdentifier: Bundle.main.bundleIdentifier,
+            infoDictionary: Bundle.main.infoDictionary ?? [:]
+        )
+    }
+
+    static func isQABundleIdentifier(_ bundleIdentifier: String?) -> Bool {
+        bundleIdentifier?.contains(".qa.") == true
+    }
+
+    static func resolve(
+        bundleIdentifier: String?,
+        infoDictionary: [String: Any]
+    ) -> ApplicationQAIsolationConfiguration? {
+        guard isQABundleIdentifier(bundleIdentifier),
+              let storagePath = infoDictionary[storagePathInfoKey] as? String,
+              !storagePath.isEmpty,
+              (storagePath as NSString).isAbsolutePath,
+              let defaultsSuiteName = infoDictionary[defaultsSuiteInfoKey]
+                as? String,
+              !defaultsSuiteName.isEmpty else {
+            return nil
+        }
+
+        return ApplicationQAIsolationConfiguration(
+            storageURL: URL(fileURLWithPath: storagePath),
+            defaultsSuiteName: defaultsSuiteName,
+            keepsNotchExpanded: infoDictionary[keepsNotchExpandedInfoKey]
+                as? Bool ?? false
+        )
     }
 }
 
@@ -119,11 +154,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainWindowObservers: [NSObjectProtocol] = []
     private weak var settingsWindow: NSWindow?
     private var settingsWindowObservers: [NSObjectProtocol] = []
-    private var glassRefractionBackdropWindow: NSWindow?
 
     override init() {
-        store = WorkTimerStore()
-        preferences = AppPreferences()
+        let bundleIdentifier = Bundle.main.bundleIdentifier
+        if ApplicationQAIsolationConfiguration.isQABundleIdentifier(
+            bundleIdentifier
+        ) {
+            guard let configuration = ApplicationQAIsolationConfiguration.current,
+            let isolatedDefaults = UserDefaults(
+                suiteName: configuration.defaultsSuiteName
+            ) else {
+                fatalError(
+                    "A QA bundle requires an isolated storage path and preferences suite."
+                )
+            }
+
+            store = WorkTimerStore(storageURL: configuration.storageURL)
+            preferences = AppPreferences(defaults: isolatedDefaults)
+        } else {
+            store = WorkTimerStore()
+            preferences = AppPreferences()
+        }
         launchAtLogin = LaunchAtLoginController()
         makeIslandPanel = Self.defaultIslandPanel
         makeMainWindow = Self.defaultMainWindow
@@ -185,9 +236,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        if ApplicationQAConfiguration.showsGlassRefractionFixture {
-            configureGlassRefractionFixture(window: window)
-        }
         updateApplicationVisibility()
     }
 
@@ -386,36 +434,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindowObservers.removeAll()
     }
 
-    private func configureGlassRefractionFixture(window: NSWindow) {
-        window.isOpaque = false
-        window.backgroundColor = .clear
-        window.hasShadow = false
-
-        guard glassRefractionBackdropWindow == nil else {
-            return
-        }
-
-        let backdrop = NSWindow(
-            contentRect: window.frame,
-            styleMask: [.borderless],
-            backing: .buffered,
-            defer: false
-        )
-        backdrop.isOpaque = true
-        backdrop.backgroundColor = .white
-        backdrop.hasShadow = false
-        backdrop.ignoresMouseEvents = true
-        backdrop.isReleasedWhenClosed = false
-        backdrop.contentView = NSHostingView(
-            rootView: IslandRefractionBackdropFixtureView()
-        )
-        backdrop.setFrame(window.frame, display: true)
-        glassRefractionBackdropWindow = backdrop
-        window.addChildWindow(backdrop, ordered: .below)
-        backdrop.orderFront(nil)
-        window.orderFront(nil)
-    }
-
     private func updateApplicationVisibility() {
         updateApplicationVisibility(
             mainWindowVisible: mainWindow?.isVisible == true
@@ -467,25 +485,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferences: AppPreferences,
         launchAtLogin: LaunchAtLoginController
     ) -> NSWindow? {
-        let rootView: AnyView
-        if ApplicationQAConfiguration.showsGlassRefractionFixture {
-            rootView = AnyView(IslandRefractionFixtureView())
-        } else {
-            rootView = AnyView(
-                RootView()
-                    .environmentObject(store)
-                    .environmentObject(preferences)
-                    .environmentObject(launchAtLogin)
-            )
-        }
+        let rootView = RootView()
+            .environmentObject(store)
+            .environmentObject(preferences)
+            .environmentObject(launchAtLogin)
         let hostingController = NSHostingController(rootView: rootView)
-        let isFixture = ApplicationQAConfiguration.showsGlassRefractionFixture
         let window = NSWindow(
             contentRect: NSRect(
                 x: 0,
                 y: 0,
-                width: isFixture ? 620 : MainWindowLayout.defaultWidth,
-                height: isFixture ? 610 : MainWindowLayout.defaultHeight
+                width: MainWindowLayout.defaultWidth,
+                height: MainWindowLayout.defaultHeight
             ),
             styleMask: [
                 .titled,
@@ -498,7 +508,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
 
-        window.title = isFixture ? "Glass Refraction QA" : "Work Island"
+        window.title = "Work Island"
         window.contentViewController = hostingController
         window.minSize = NSSize(
             width: MainWindowLayout.minimumWidth,
@@ -506,7 +516,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         window.isReleasedWhenClosed = false
 
-        if isFixture || !window.setFrameUsingName("main") {
+        if !window.setFrameUsingName("main") {
             window.center()
         }
         window.setFrameAutosaveName("main")

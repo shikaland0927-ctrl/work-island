@@ -153,31 +153,9 @@ final class IslandPanelController: IslandPanelPresenting {
             .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                guard self?.presentation.isNotchGlassPreviewPinned != true else {
-                    return
-                }
                 self?.presentation.isExpanded = false
             }
             .store(in: &cancellables)
-
-        Publishers.CombineLatest3(
-            preferences.$isNotchGlassPreviewRequested,
-            preferences.$appearance,
-            preferences.$notchGlassPreviewRequestRevision
-        )
-        .removeDuplicates { previous, current in
-            previous.0 == current.0
-                && previous.1 == current.1
-                && previous.2 == current.2
-        }
-        .receive(on: RunLoop.main)
-        .sink { [weak self] isRequested, appearance, _ in
-            self?.updateNotchGlassPreview(
-                isRequested: isRequested,
-                appearance: appearance
-            )
-        }
-        .store(in: &cancellables)
 
         presentation.$interactionDepth
             .removeDuplicates()
@@ -232,6 +210,12 @@ final class IslandPanelController: IslandPanelPresenting {
                 }
             }
             .store(in: &cancellables)
+
+        if ApplicationQAIsolationConfiguration.current?.keepsNotchExpanded
+            == true {
+            presentation.beginInteraction()
+            presentation.isExpanded = true
+        }
     }
 
     deinit {
@@ -249,10 +233,6 @@ final class IslandPanelController: IslandPanelPresenting {
 
     private func handleHover(_ isHovering: Bool) {
         if isHovering {
-            if presentation.isNotchGlassPreviewPinned {
-                presentation.noteNotchGlassPreviewPointerEntered()
-                return
-            }
             guard preferences.notchOpenMode == .hover else {
                 return
             }
@@ -263,29 +243,7 @@ final class IslandPanelController: IslandPanelPresenting {
             return
         }
 
-        if presentation.dismissNotchGlassPreviewAfterPointerExit() {
-            return
-        }
-
         collapseIfPointerIsOutside()
-    }
-
-    private func updateNotchGlassPreview(
-        isRequested: Bool,
-        appearance: WorkIslandAppearance
-    ) {
-        guard isRequested else {
-            presentation.endNotchGlassPreview()
-            return
-        }
-
-        guard appearance == .liquidGlass else {
-            presentation.endNotchGlassPreview()
-            return
-        }
-
-        presentation.beginNotchGlassPreview()
-        panel.orderFrontRegardless()
     }
 
     private func updatePointerVerification(isExpanded: Bool) {
@@ -327,9 +285,9 @@ final class IslandPanelController: IslandPanelPresenting {
             return
         }
 
-        let expandedFrame = IslandPanelLayout.topCenteredFrame(
+        let expandedFrame = IslandPanelLayout.topAttachedFrame(
             size: expandedSize,
-            screenFrame: screen.frame
+            on: screen
         )
         guard IslandHoverPolicy.shouldCollapse(
             pointerLocation: NSEvent.mouseLocation,
@@ -337,7 +295,6 @@ final class IslandPanelController: IslandPanelPresenting {
             isInteractionActive: menuTrackingDepth > 0
                 || presentation.isInteractionActive
                 || presentation.isCompletionRevealPinned
-                || presentation.isNotchGlassPreviewPinned
         ) else {
             return
         }
@@ -403,9 +360,9 @@ final class IslandPanelController: IslandPanelPresenting {
         }
 
         let collapsedSize = IslandPanelLayout.collapsedSize(on: screen)
-        let collapsedFrame = IslandPanelLayout.topCenteredFrame(
+        let collapsedFrame = IslandPanelLayout.topAttachedFrame(
             size: collapsedSize,
-            screenFrame: screen.frame
+            on: screen
         )
         let showsCompactProgress = preferences.showsCompactProgress
             && store.activeWork?.progress(at: Date()) != nil
@@ -420,9 +377,9 @@ final class IslandPanelController: IslandPanelPresenting {
             size = collapsedSize
         }
 
-        let frame = IslandPanelLayout.topCenteredFrame(
+        let frame = IslandPanelLayout.topAttachedFrame(
             size: size,
-            screenFrame: screen.frame
+            on: screen
         )
         statusIndicatorPanel.setFrame(
             IslandPanelLayout.statusIndicatorFrame(notchFrame: collapsedFrame),
@@ -432,7 +389,7 @@ final class IslandPanelController: IslandPanelPresenting {
         if animated {
             animatePanel(
                 to: frame,
-                duration: presentation.isExpanded ? 0.18 : 0.08
+                duration: NotchAnimationTiming.movementDuration
             )
         } else {
             panelFrameAnimationTimer?.invalidate()
@@ -445,11 +402,20 @@ final class IslandPanelController: IslandPanelPresenting {
         panelFrameAnimationTimer?.invalidate()
         panelFrameAnimationTimer = nil
 
-        let startFrame = panel.frame
+        let startFrame = IslandPanelLayout.topAnchoredFrame(
+            size: panel.frame.size,
+            centerX: targetFrame.midX,
+            topY: targetFrame.maxY
+        )
         guard startFrame != targetFrame, duration > 0 else {
             panel.setFrame(targetFrame, display: true)
             return
         }
+
+        // Keep the physical notch center as the single horizontal anchor.
+        // This also normalizes an interrupted animation before width
+        // interpolation so both edges always travel by the same amount.
+        panel.setFrame(startFrame, display: true)
 
         let startedAt = ProcessInfo.processInfo.systemUptime
         let timer = Timer(
@@ -464,7 +430,7 @@ final class IslandPanelController: IslandPanelPresenting {
             let elapsed = ProcessInfo.processInfo.systemUptime - startedAt
             let progress = min(1, max(0, elapsed / duration))
             let easedProgress = 1 - pow(1 - progress, 3)
-            let frame = IslandPanelLayout.interpolatedTopCenteredFrame(
+            let frame = IslandPanelLayout.interpolatedTopAnchoredFrame(
                 from: startFrame,
                 to: targetFrame,
                 progress: easedProgress
@@ -555,19 +521,60 @@ enum IslandPanelLayout {
     static let statusIndicatorGap: CGFloat = 3
     static let statusIndicatorWidth: CGFloat = 14
 
-    static func topCenteredFrame(
+    static func topAttachedFrame(
         size: NSSize,
-        screenFrame: NSRect
+        on screen: NSScreen
     ) -> NSRect {
-        NSRect(
-            x: screenFrame.midX - size.width / 2,
-            y: screenFrame.maxY - size.height,
-            width: size.width,
-            height: size.height
+        topAnchoredFrame(
+            size: size,
+            centerX: horizontalAnchor(
+                screenFrame: screen.frame,
+                auxiliaryTopLeftArea: screen.auxiliaryTopLeftArea,
+                auxiliaryTopRightArea: screen.auxiliaryTopRightArea
+            ),
+            topY: screen.frame.maxY
         )
     }
 
-    static func interpolatedTopCenteredFrame(
+    static func horizontalAnchor(
+        screenFrame: NSRect,
+        auxiliaryTopLeftArea: NSRect?,
+        auxiliaryTopRightArea: NSRect?
+    ) -> CGFloat {
+        guard let auxiliaryTopLeftArea,
+              let auxiliaryTopRightArea,
+              auxiliaryTopRightArea.minX > auxiliaryTopLeftArea.maxX else {
+            return screenFrame.midX
+        }
+
+        return (
+            auxiliaryTopLeftArea.maxX + auxiliaryTopRightArea.minX
+        ) / 2
+    }
+
+    static func topAnchoredFrame(
+        size: NSSize,
+        centerX: CGFloat,
+        topY: CGFloat
+    ) -> NSRect {
+        // NSWindow integralizes fractional frame edges. Derive both horizontal
+        // edges from one anchor so that integralization cannot move only one
+        // side by a point. Expanding outward by at most one point also avoids
+        // clipping the requested content size.
+        let minX = floor(centerX - size.width / 2)
+        let maxX = centerX + (centerX - minX)
+        let alignedTopY = topY.rounded()
+        let minY = floor(alignedTopY - size.height)
+
+        return NSRect(
+            x: minX,
+            y: minY,
+            width: maxX - minX,
+            height: alignedTopY - minY
+        )
+    }
+
+    static func interpolatedTopAnchoredFrame(
         from startFrame: NSRect,
         to endFrame: NSRect,
         progress: Double
@@ -583,22 +590,10 @@ enum IslandPanelLayout {
             to: endFrame.height,
             amount: amount
         )
-        let centerX = interpolate(
-            from: startFrame.midX,
-            to: endFrame.midX,
-            amount: amount
-        )
-        let topY = interpolate(
-            from: startFrame.maxY,
-            to: endFrame.maxY,
-            amount: amount
-        )
-
-        return NSRect(
-            x: centerX - width / 2,
-            y: topY - height,
-            width: width,
-            height: height
+        return topAnchoredFrame(
+            size: NSSize(width: width, height: height),
+            centerX: endFrame.midX,
+            topY: endFrame.maxY
         )
     }
 

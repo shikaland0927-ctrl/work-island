@@ -31,6 +31,59 @@ final class IslandHoverPolicyTests: XCTestCase {
         )
     }
 
+    func testActivityIdentityKeepsOneRowHeightWhenRecordingStarts() {
+        XCTAssertEqual(
+            IslandSessionIdentityLayout.idleRowHeight,
+            IslandSessionIdentityLayout.activeRowHeight
+        )
+        XCTAssertEqual(IslandSessionIdentityLayout.idleRowHeight, 34)
+    }
+
+    func testManualAddFeedbackMorphsBeforeAStableCollapse() {
+        XCTAssertEqual(
+            ManualAddFeedbackTiming.labelFadeOutDuration,
+            0.18,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            ManualAddFeedbackTiming.labelFadeInDuration,
+            0.24,
+            accuracy: 0.000_001
+        )
+        XCTAssertGreaterThan(
+            ManualAddFeedbackTiming.confirmationDuration,
+            ManualAddFeedbackTiming.labelMorphDuration
+        )
+        XCTAssertEqual(
+            ManualAddFeedbackTiming.confirmedHoldDuration,
+            1,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            ManualAddFeedbackTiming.confirmationDuration,
+            ManualAddFeedbackTiming.labelMorphDuration + 1,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(ManualAddFeedbackPhase.idle.title, "Add")
+        XCTAssertEqual(ManualAddFeedbackPhase.idle.systemName, "plus")
+        XCTAssertEqual(ManualAddFeedbackPhase.fadingOut.labelOpacity, 0)
+        XCTAssertEqual(ManualAddFeedbackPhase.confirmed.title, "Added")
+        XCTAssertEqual(
+            ManualAddFeedbackPhase.confirmed.systemName,
+            "checkmark"
+        )
+        XCTAssertFalse(ManualAddFeedbackPhase.idle.locksInteraction)
+        XCTAssertTrue(ManualAddFeedbackPhase.confirmed.locksInteraction)
+        XCTAssertGreaterThanOrEqual(
+            ManualAddFeedbackTiming.resetDelayAfterCollapse,
+            NotchAnimationTiming.movementDuration
+        )
+        XCTAssertGreaterThanOrEqual(
+            ManualAddFeedbackTiming.resetDelayAfterCollapse,
+            NotchAnimationTiming.contentResponse
+        )
+    }
+
     func testExpandedAndCompactProgressPathsBothLeaveTheTopOpen() {
         let rect = CGRect(x: 0, y: 0, width: 460, height: 190)
         let path = OpenNotchProgressShape(cornerRadius: 25).path(in: rect)
@@ -159,54 +212,6 @@ final class IslandHoverPolicyTests: XCTestCase {
         XCTAssertNil(presentation.completionNotice)
     }
 
-    func testNotchGlassPreviewStaysOpenUntilPointerVisitsAndLeaves() {
-        let presentation = IslandPresentationState()
-
-        presentation.beginNotchGlassPreview()
-
-        XCTAssertTrue(presentation.isExpanded)
-        XCTAssertTrue(presentation.isNotchGlassPreviewPinned)
-        XCTAssertFalse(presentation.hasNotchGlassPreviewBeenTouched)
-        XCTAssertFalse(
-            presentation.dismissNotchGlassPreviewAfterPointerExit()
-        )
-
-        presentation.noteNotchGlassPreviewPointerEntered()
-        XCTAssertTrue(presentation.hasNotchGlassPreviewBeenTouched)
-        XCTAssertTrue(
-            presentation.dismissNotchGlassPreviewAfterPointerExit()
-        )
-        XCTAssertFalse(presentation.isExpanded)
-        XCTAssertFalse(presentation.isNotchGlassPreviewPinned)
-    }
-
-    func testCompletionRevealOutlivesNotchGlassPreview() {
-        let presentation = IslandPresentationState()
-        let notice = TimedActivityCompletion(
-            kind: .timer,
-            activityTitle: "Writing",
-            completedAt: Date(timeIntervalSince1970: 1_700_000_000)
-        )
-
-        presentation.beginNotchGlassPreview()
-        presentation.presentCompletion(notice)
-        presentation.endNotchGlassPreview()
-
-        XCTAssertTrue(presentation.isExpanded)
-        XCTAssertTrue(presentation.isCompletionRevealPinned)
-        XCTAssertFalse(presentation.isNotchGlassPreviewPinned)
-    }
-
-    func testEndingAnInactivePreviewDoesNotCollapseNormalExpansion() {
-        let presentation = IslandPresentationState()
-        presentation.isExpanded = true
-
-        presentation.endNotchGlassPreview()
-
-        XCTAssertTrue(presentation.isExpanded)
-        XCTAssertFalse(presentation.isNotchGlassPreviewPinned)
-    }
-
     func testCompletionRevealModesUseTheRequestedLifetime() {
         XCTAssertEqual(
             CompletionRevealMode.allCases,
@@ -310,31 +315,71 @@ final class IslandHoverPolicyTests: XCTestCase {
         XCTAssertEqual(size.height, 31, accuracy: 0.001)
     }
 
-    func testPanelFramesKeepTheScreenTopCenterAsTheyResize() {
-        let screenFrame = NSRect(x: 120, y: 80, width: 1_470, height: 956)
-        let collapsedFrame = IslandPanelLayout.topCenteredFrame(
-            size: NSSize(width: 177, height: 31),
-            screenFrame: screenFrame
+    func testPanelFramesKeepThePhysicalNotchTopCenterAsTheyResize() {
+        let screenFrame = NSRect(x: 0, y: 0, width: 1_470, height: 956)
+        let leftArea = NSRect(x: 0, y: 924, width: 646, height: 32)
+        let rightArea = NSRect(x: 825, y: 924, width: 645, height: 32)
+        let anchor = IslandPanelLayout.horizontalAnchor(
+            screenFrame: screenFrame,
+            auxiliaryTopLeftArea: leftArea,
+            auxiliaryTopRightArea: rightArea
         )
-        let expandedFrame = IslandPanelLayout.topCenteredFrame(
+        let collapsedFrame = IslandPanelLayout.topAnchoredFrame(
+            size: NSSize(width: 177, height: 31),
+            centerX: anchor,
+            topY: screenFrame.maxY
+        )
+        let expandedFrame = IslandPanelLayout.topAnchoredFrame(
             size: NSSize(width: 500, height: 190),
-            screenFrame: screenFrame
+            centerX: anchor,
+            topY: screenFrame.maxY
         )
 
-        XCTAssertEqual(collapsedFrame.midX, screenFrame.midX, accuracy: 0.001)
-        XCTAssertEqual(expandedFrame.midX, screenFrame.midX, accuracy: 0.001)
+        XCTAssertEqual(anchor, 735.5, accuracy: 0.001)
+        XCTAssertEqual(collapsedFrame.midX, anchor, accuracy: 0.001)
+        XCTAssertEqual(expandedFrame.midX, anchor, accuracy: 0.001)
         XCTAssertEqual(collapsedFrame.maxY, screenFrame.maxY, accuracy: 0.001)
         XCTAssertEqual(expandedFrame.maxY, screenFrame.maxY, accuracy: 0.001)
 
-        for progress in stride(from: 0.0, through: 1.0, by: 0.1) {
-            let frame = IslandPanelLayout.interpolatedTopCenteredFrame(
+        for progress in stride(from: 0.0, through: 1.0, by: 0.01) {
+            let frame = IslandPanelLayout.interpolatedTopAnchoredFrame(
                 from: collapsedFrame,
                 to: expandedFrame,
                 progress: progress
             )
-            XCTAssertEqual(frame.midX, screenFrame.midX, accuracy: 0.001)
+            XCTAssertEqual(frame.midX, anchor, accuracy: 0.001)
             XCTAssertEqual(frame.maxY, screenFrame.maxY, accuracy: 0.001)
+            XCTAssertEqual(frame.minX, frame.minX.rounded(), accuracy: 0.001)
+            XCTAssertEqual(frame.maxX, frame.maxX.rounded(), accuracy: 0.001)
+            XCTAssertEqual(
+                collapsedFrame.minX - frame.minX,
+                frame.maxX - collapsedFrame.maxX,
+                accuracy: 0.001
+            )
         }
+
+        let interruptedFrame = collapsedFrame.offsetBy(dx: 7, dy: -3)
+        let normalizedFrame = IslandPanelLayout.interpolatedTopAnchoredFrame(
+            from: interruptedFrame,
+            to: expandedFrame,
+            progress: 0.4
+        )
+        XCTAssertEqual(normalizedFrame.midX, anchor, accuracy: 0.001)
+        XCTAssertEqual(normalizedFrame.maxY, screenFrame.maxY, accuracy: 0.001)
+    }
+
+    func testPanelAnchorFallsBackToScreenCenterWithoutAPhysicalNotch() {
+        let screenFrame = NSRect(x: 120, y: 80, width: 1_470, height: 956)
+
+        XCTAssertEqual(
+            IslandPanelLayout.horizontalAnchor(
+                screenFrame: screenFrame,
+                auxiliaryTopLeftArea: nil,
+                auxiliaryTopRightArea: nil
+            ),
+            screenFrame.midX,
+            accuracy: 0.001
+        )
     }
 
     func testCollapsedPanelUsesSmallerFallbackWithoutANotch() {
@@ -368,7 +413,7 @@ final class IslandHoverPolicyTests: XCTestCase {
         )
     }
 
-    func testLiquidGlassNotchUsesClearerShellAndVividPrimaryTints() {
+    func testLiquidGlassNotchUsesClearerShellAndVividActionTints() {
         XCTAssertLessThan(IslandLiquidGlassStyle.shellBlackOpacity, 0.15)
         XCTAssertLessThanOrEqual(IslandLiquidGlassStyle.shellTintOpacity, 0.15)
         XCTAssertGreaterThan(
@@ -377,6 +422,10 @@ final class IslandHoverPolicyTests: XCTestCase {
         )
         XCTAssertGreaterThan(
             IslandLiquidGlassStyle.selectedActivityTintOpacity,
+            IslandLiquidGlassStyle.primaryActionTintOpacity
+        )
+        XCTAssertGreaterThan(
+            IslandLiquidGlassStyle.vividActionTintOpacity,
             IslandLiquidGlassStyle.primaryActionTintOpacity
         )
         XCTAssertLessThan(
@@ -398,6 +447,43 @@ final class IslandHoverPolicyTests: XCTestCase {
                     IslandLiquidGlassStyle.selectedActivityRGB.green
                 ),
             0.60
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.resumeActionRGB.red,
+            IslandLiquidGlassStyle.primaryActionRGB.red
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.resumeActionRGB.green,
+            IslandLiquidGlassStyle.primaryActionRGB.green
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.resumeActionRGB.blue,
+            IslandLiquidGlassStyle.primaryActionRGB.blue
+        )
+        XCTAssertEqual(
+            IslandLiquidGlassStyle.resumeActionTintOpacity,
+            IslandLiquidGlassStyle.primaryActionTintOpacity
+        )
+        XCTAssertGreaterThan(
+            IslandLiquidGlassStyle.pauseActionRGB.red
+                - IslandLiquidGlassStyle.pauseActionRGB.blue,
+            0.90
+        )
+        XCTAssertGreaterThan(
+            IslandLiquidGlassStyle.finishActionRGB.blue
+                - max(
+                    IslandLiquidGlassStyle.finishActionRGB.red,
+                    IslandLiquidGlassStyle.finishActionRGB.green
+                ),
+            0.70
+        )
+        XCTAssertGreaterThan(
+            IslandLiquidGlassStyle.discardActionRGB.red
+                - max(
+                    IslandLiquidGlassStyle.discardActionRGB.green,
+                    IslandLiquidGlassStyle.discardActionRGB.blue
+                ),
+            0.80
         )
     }
 
@@ -423,143 +509,62 @@ final class IslandHoverPolicyTests: XCTestCase {
         )
         XCTAssertEqual(
             IslandLiquidGlassStyle.additionalBlurOpacity(for: configuration),
-            pow(2.0 / 12.0, 2.4),
+            pow(8.0 / 12.0, 2.4),
             accuracy: 0.000_001
         )
         XCTAssertEqual(
             IslandLiquidGlassStyle.nativeGlassOpacity(
                 for: configuration
             ),
-            pow(2.0 / 12.0, 1.55),
+            pow(8.0 / 12.0, 1.55),
             accuracy: 0.000_001
         )
         XCTAssertEqual(
             IslandLiquidGlassStyle.fallbackBaseMaterialOpacity(
                 for: configuration
             ),
-            pow(2.0 / 12.0, 1.55),
+            pow(8.0 / 12.0, 1.55),
             accuracy: 0.000_001
         )
         XCTAssertEqual(configuration.frost, 6)
         XCTAssertEqual(configuration.bezelDepth, 0)
-        XCTAssertEqual(configuration.refractiveIndex, 1.5, accuracy: 0.000_001)
+        XCTAssertEqual(configuration.refractiveIndex, 1, accuracy: 0.000_001)
     }
 
-    func testBlurUsesOneContinuousNativeGlassRamp() {
-        let minimum = NotchGlassConfiguration(
-            blur: 0,
-            refractiveIndexHundredths: 150
-        )
-        let one = NotchGlassConfiguration(
-            blur: 1,
-            refractiveIndexHundredths: 150
-        )
-        let standard = NotchGlassConfiguration(
-            blur: 2,
-            refractiveIndexHundredths: 150
-        )
-        let maximum = NotchGlassConfiguration(
-            blur: 12,
-            refractiveIndexHundredths: 150
-        )
+    func testBlurUsesTheFixedEightOfTwelveGlassRamp() {
+        let configuration = NotchGlassConfiguration.standard
 
+        XCTAssertEqual(configuration.blur, 8)
+        XCTAssertEqual(NotchGlassConfiguration.fixedBlur, 8)
+        XCTAssertEqual(NotchGlassConfiguration.blurScaleMaximum, 12)
         XCTAssertEqual(
-            IslandLiquidGlassStyle.nativeGlassOpacity(for: minimum),
-            0,
+            IslandLiquidGlassStyle.nativeGlassOpacity(for: configuration),
+            pow(8.0 / 12.0, 1.55),
             accuracy: 0.000_001
         )
         XCTAssertEqual(
-            IslandLiquidGlassStyle.nativeGlassOpacity(for: one),
-            pow(1.0 / 12.0, 1.55),
-            accuracy: 0.000_001
-        )
-        XCTAssertLessThan(
-            IslandLiquidGlassStyle.nativeGlassOpacity(for: one),
-            0.025
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.nativeGlassOpacity(for: standard),
-            pow(2.0 / 12.0, 1.55),
+            IslandLiquidGlassStyle.additionalBlurOpacity(for: configuration),
+            pow(8.0 / 12.0, 2.4),
             accuracy: 0.000_001
         )
         XCTAssertEqual(
-            IslandLiquidGlassStyle.nativeGlassOpacity(for: maximum),
-            1,
+            IslandLiquidGlassStyle.fallbackBaseMaterialOpacity(
+                for: configuration
+            ),
+            pow(8.0 / 12.0, 1.55),
             accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.additionalBlurOpacity(for: maximum),
-            1,
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.fallbackBaseMaterialOpacity(for: minimum),
-            0,
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.fallbackBaseMaterialOpacity(for: one),
-            pow(1.0 / 12.0, 1.55),
-            accuracy: 0.000_001
-        )
-        XCTAssertLessThan(
-            IslandLiquidGlassStyle.nativeGlassOpacity(for: one)
-                - IslandLiquidGlassStyle.nativeGlassOpacity(for: minimum),
-            IslandLiquidGlassStyle.nativeGlassOpacity(for: standard)
-                - IslandLiquidGlassStyle.nativeGlassOpacity(for: one)
         )
     }
 
-    func testRefractiveIndexChangesNativeOpticsWithoutChangingBaseStyle() {
-        let minimum = NotchGlassConfiguration(
-            blur: 0,
-            refractiveIndexHundredths: 100
-        )
-        let maximum = NotchGlassConfiguration(
-            blur: 0,
-            refractiveIndexHundredths: 300
-        )
+    func testRefractionRemainsFixedAtTheNeutralIndex() {
+        let configuration = NotchGlassConfiguration.standard
 
         XCTAssertEqual(
-            IslandLiquidGlassStyle.shellBlackOpacity(for: minimum),
-            IslandLiquidGlassStyle.shellBlackOpacity(for: maximum),
-            accuracy: 0.000_001
+            NotchGlassConfiguration.fixedRefractiveIndexHundredths,
+            100
         )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.nativeGlassOpacity(for: minimum),
-            IslandLiquidGlassStyle.nativeGlassOpacity(for: maximum),
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.shellTintOpacity(for: maximum),
-            IslandLiquidGlassStyle.shellTintOpacity(for: minimum),
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.shellReflectionTintOpacity(for: maximum),
-            IslandLiquidGlassStyle.shellReflectionTintOpacity(for: minimum),
-            accuracy: 0.000_001
-        )
-
-        let standard = NotchGlassConfiguration.standard
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.nativeRefractionOpacity(for: minimum),
-            0,
-            accuracy: 0.000_001
-        )
-        XCTAssertGreaterThan(
-            IslandLiquidGlassStyle.nativeRefractionOpacity(for: standard),
-            0
-        )
-        XCTAssertLessThan(
-            IslandLiquidGlassStyle.nativeRefractionOpacity(for: standard),
-            IslandLiquidGlassStyle.nativeRefractionOpacity(for: maximum)
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.nativeRefractionOpacity(for: maximum),
-            0.45,
-            accuracy: 0.000_001
-        )
+        XCTAssertEqual(configuration.refractiveIndexHundredths, 100)
+        XCTAssertEqual(configuration.refractiveIndex, 1, accuracy: 0.000_001)
     }
 
     func testConvexSquircleReferenceProfileAndMapStaySymmetric() throws {
@@ -658,26 +663,12 @@ final class IslandHoverPolicyTests: XCTestCase {
     }
 
     func testFrostAndBezelAreFixedOutsideTheSettingsModel() {
-        let minimum = NotchGlassConfiguration(
-            blur: 0,
-            refractiveIndexHundredths: 100
-        )
-        let maximum = NotchGlassConfiguration(
-            blur: 12,
-            refractiveIndexHundredths: 300
-        )
+        let configuration = NotchGlassConfiguration.standard
 
-        XCTAssertEqual(minimum.frost, 6)
-        XCTAssertEqual(maximum.frost, 6)
-        XCTAssertEqual(minimum.bezelDepth, 0)
-        XCTAssertEqual(maximum.bezelDepth, 0)
+        XCTAssertEqual(configuration.frost, 6)
+        XCTAssertEqual(configuration.bezelDepth, 0)
         XCTAssertEqual(
-            IslandLiquidGlassStyle.shellBlackOpacity(for: minimum),
-            0.06,
-            accuracy: 0.000_001
-        )
-        XCTAssertEqual(
-            IslandLiquidGlassStyle.shellBlackOpacity(for: maximum),
+            IslandLiquidGlassStyle.shellBlackOpacity(for: configuration),
             0.06,
             accuracy: 0.000_001
         )

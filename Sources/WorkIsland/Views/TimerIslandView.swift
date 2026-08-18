@@ -8,8 +8,6 @@ final class IslandPresentationState: ObservableObject {
     @Published private(set) var compactStatus: IslandCompactStatus?
     @Published private(set) var completionNotice: TimedActivityCompletion?
     @Published private(set) var isCompletionRevealPinned = false
-    @Published private(set) var isNotchGlassPreviewPinned = false
-    @Published private(set) var hasNotchGlassPreviewBeenTouched = false
 
     var isInteractionActive: Bool {
         interactionDepth > 0
@@ -38,39 +36,6 @@ final class IslandPresentationState: ObservableObject {
         isCompletionRevealPinned = false
     }
 
-    func beginNotchGlassPreview() {
-        isNotchGlassPreviewPinned = true
-        hasNotchGlassPreviewBeenTouched = false
-        isExpanded = true
-    }
-
-    func noteNotchGlassPreviewPointerEntered() {
-        guard isNotchGlassPreviewPinned else {
-            return
-        }
-        hasNotchGlassPreviewBeenTouched = true
-    }
-
-    @discardableResult
-    func dismissNotchGlassPreviewAfterPointerExit() -> Bool {
-        guard isNotchGlassPreviewPinned,
-              hasNotchGlassPreviewBeenTouched else {
-            return false
-        }
-        endNotchGlassPreview()
-        return true
-    }
-
-    func endNotchGlassPreview() {
-        guard isNotchGlassPreviewPinned else {
-            return
-        }
-        isNotchGlassPreviewPinned = false
-        hasNotchGlassPreviewBeenTouched = false
-        if !isCompletionRevealPinned {
-            isExpanded = false
-        }
-    }
 }
 
 struct IslandActionLayout {
@@ -106,6 +71,60 @@ struct IslandDigitalClockLayout {
     static let idleWidth: CGFloat = 108
     static let idleTextHorizontalOffset: CGFloat = -6
     static let timerChevronTrailingInset: CGFloat = 4
+}
+
+struct IslandSessionIdentityLayout {
+    static let idleRowHeight: CGFloat = 34
+    static let activeRowHeight = idleRowHeight
+}
+
+struct ManualAddFeedbackTiming {
+    static let labelFadeOutDuration: TimeInterval = 0.18
+    static let labelFadeInDuration: TimeInterval = 0.24
+    static let confirmedHoldDuration: TimeInterval = 1
+
+    static var labelMorphDuration: TimeInterval {
+        labelFadeOutDuration + labelFadeInDuration
+    }
+
+    static var confirmationDuration: TimeInterval {
+        labelMorphDuration + confirmedHoldDuration
+    }
+
+    static var resetDelayAfterCollapse: TimeInterval {
+        max(
+            NotchAnimationTiming.movementDuration,
+            NotchAnimationTiming.contentResponse
+        )
+    }
+}
+
+enum ManualAddFeedbackPhase: Equatable {
+    case idle
+    case fadingOut
+    case confirmed
+
+    var title: String {
+        self == .confirmed ? "Added" : "Add"
+    }
+
+    var systemName: String {
+        self == .confirmed ? "checkmark" : "plus"
+    }
+
+    var labelOpacity: Double {
+        self == .fadingOut ? 0 : 1
+    }
+
+    var labelTransitionDuration: TimeInterval {
+        self == .confirmed
+            ? ManualAddFeedbackTiming.labelFadeInDuration
+            : ManualAddFeedbackTiming.labelFadeOutDuration
+    }
+
+    var locksInteraction: Bool {
+        self != .idle
+    }
 }
 
 struct IslandCompletionMotion {
@@ -147,6 +166,7 @@ struct IslandLiquidGlassStyle {
     static let shellTintOpacity = 0.14
     static let shellReflectionTintOpacity = 0.14
     static let primaryActionTintOpacity = 0.70
+    static let vividActionTintOpacity = 0.78
     static let selectedActivityTintOpacity = 0.76
     static let controlWhiteOverlayOpacity = 0.025
     static let controlHighlightOpacity = 0.10
@@ -154,7 +174,18 @@ struct IslandLiquidGlassStyle {
     static let controlTintBorderOpacity = 0.40
 
     static let primaryActionRGB = (red: 0.05, green: 0.92, blue: 0.28)
+    static let pauseActionRGB = (red: 1.00, green: 0.46, blue: 0.00)
+    static let finishActionRGB = (red: 0.28, green: 0.12, blue: 1.00)
+    static let discardActionRGB = (red: 1.00, green: 0.06, blue: 0.14)
     static let selectedActivityRGB = (red: 0.32, green: 0.18, blue: 1.00)
+
+    static var resumeActionRGB: (red: Double, green: Double, blue: Double) {
+        primaryActionRGB
+    }
+
+    static var resumeActionTintOpacity: Double {
+        primaryActionTintOpacity
+    }
 
     static var primaryActionTint: Color {
         Color(
@@ -169,6 +200,34 @@ struct IslandLiquidGlassStyle {
             red: selectedActivityRGB.red,
             green: selectedActivityRGB.green,
             blue: selectedActivityRGB.blue
+        )
+    }
+
+    static var pauseActionTint: Color {
+        Color(
+            red: pauseActionRGB.red,
+            green: pauseActionRGB.green,
+            blue: pauseActionRGB.blue
+        )
+    }
+
+    static var resumeActionTint: Color {
+        primaryActionTint
+    }
+
+    static var finishActionTint: Color {
+        Color(
+            red: finishActionRGB.red,
+            green: finishActionRGB.green,
+            blue: finishActionRGB.blue
+        )
+    }
+
+    static var discardActionTint: Color {
+        Color(
+            red: discardActionRGB.red,
+            green: discardActionRGB.green,
+            blue: discardActionRGB.blue
         )
     }
 
@@ -208,24 +267,6 @@ struct IslandLiquidGlassStyle {
         CGFloat(blurProgress(for: configuration) * 2.8)
     }
 
-    static func nativeRefractionOpacity(
-        for configuration: NotchGlassConfiguration
-    ) -> Double {
-        let maximum = Double(
-            NotchGlassConfiguration.refractiveIndexHundredthsRange.upperBound
-        ) / 100
-        let reflectance = interfaceReflectance(
-            refractiveIndex: configuration.refractiveIndex
-        )
-        let maximumReflectance = interfaceReflectance(
-            refractiveIndex: maximum
-        )
-        guard maximumReflectance > 0 else {
-            return 0
-        }
-        return 0.45 * sqrt(reflectance / maximumReflectance)
-    }
-
     static func fallbackBaseMaterialOpacity(
         for configuration: NotchGlassConfiguration
     ) -> Double {
@@ -246,23 +287,13 @@ struct IslandLiquidGlassStyle {
         for configuration: NotchGlassConfiguration
     ) -> Double {
         Double(configuration.blur)
-            / Double(NotchGlassConfiguration.blurRange.upperBound)
+            / Double(NotchGlassConfiguration.blurScaleMaximum)
     }
 
-    private static func interfaceReflectance(
-        refractiveIndex: Double
-    ) -> Double {
-        guard refractiveIndex > 1 else {
-            return 0
-        }
-        let ratio = (refractiveIndex - 1) / (refractiveIndex + 1)
-        return ratio * ratio
-    }
 }
 
-/// A geometry reference for the requested Convex Squircle profile. The public
-/// native glass API owns backdrop sampling and doesn't accept this map as an
-/// input; production rendering scales the native clear-glass optical surface.
+/// Mathematical reference retained from the rejected Convex Squircle lens
+/// experiment. It is covered by geometry tests but is not rendered by the app.
 struct IslandConvexSquircleLens {
     static let bandWidth: CGFloat = 30
     static let glassThickness: CGFloat = 18
@@ -584,22 +615,6 @@ struct IslandConvexSquircleLens {
     }
 }
 
-private struct IslandFallbackRefractionView: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let material = NSVisualEffectView()
-        material.blendingMode = .behindWindow
-        material.material = .underWindowBackground
-        material.state = .active
-        return material
-    }
-
-    func updateNSView(
-        _ nsView: NSVisualEffectView,
-        context: Context
-    ) {
-    }
-}
-
 struct IslandNotchBackground: View {
     let isExpanded: Bool
     let appearance: WorkIslandAppearance
@@ -627,9 +642,6 @@ struct IslandNotchBackground: View {
                         additionalBlurLayer(shape: shape)
                     }
                     .background { nativeGlassLayer(shape: shape) }
-                    .overlay {
-                        liquidNativeRefraction(shape: shape)
-                    }
                     .overlay { liquidReflection(shape: shape) }
             } else {
                 shape
@@ -649,35 +661,11 @@ struct IslandNotchBackground: View {
                             )
                         )
                     }
-                    .overlay {
-                        liquidNativeRefraction(shape: shape)
-                    }
                     .overlay { liquidReflection(shape: shape) }
             }
         } else {
             shape.fill(Color.black)
         }
-    }
-
-    private func liquidNativeRefraction(
-        shape: NotchShape
-    ) -> some View {
-        Group {
-            if #available(macOS 26.0, *) {
-                shape
-                    .fill(Color.clear)
-                    .glassEffect(Glass.clear, in: shape)
-            } else {
-                IslandFallbackRefractionView()
-            }
-        }
-        .opacity(
-            IslandLiquidGlassStyle.nativeRefractionOpacity(
-                for: configuration
-            )
-        )
-        .clipShape(shape)
-        .allowsHitTesting(false)
     }
 
     @ViewBuilder
@@ -763,86 +751,16 @@ struct IslandNotchBackground: View {
 
 }
 
-struct IslandRefractionFixtureView: View {
-    private let neutral = NotchGlassConfiguration(
-        blur: 0,
-        refractiveIndexHundredths: 100
-    )
-    private let strongest = NotchGlassConfiguration(
-        blur: 0,
-        refractiveIndexHundredths: 300
-    )
-
-    var body: some View {
-        VStack(spacing: 22) {
-            Text("Native Refraction")
-                .font(.title2.bold())
-
-            fixture(configuration: neutral, title: "Index 1.00")
-            fixture(configuration: strongest, title: "Index 3.00")
-        }
-        .padding(28)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.clear)
-    }
-
-    private func fixture(
-        configuration: NotchGlassConfiguration,
-        title: String
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(title)
-                .font(.headline.monospacedDigit())
-
-            IslandNotchBackground(
-                isExpanded: true,
-                appearance: .liquidGlass,
-                configuration: configuration
-            )
-            .frame(width: 500, height: 190)
-        }
-    }
-}
-
-struct IslandRefractionBackdropFixtureView: View {
-    var body: some View {
-        Canvas { context, size in
-            context.fill(
-                Path(CGRect(origin: .zero, size: size)),
-                with: .color(.white)
-            )
-
-            for x in stride(from: 0.0, through: size.width, by: 10) {
-                var path = Path()
-                path.move(to: CGPoint(x: x, y: 0))
-                path.addLine(to: CGPoint(x: x, y: size.height))
-                context.stroke(
-                    path,
-                    with: .color(Int(x / 10).isMultiple(of: 5) ? .black : .blue),
-                    lineWidth: Int(x / 10).isMultiple(of: 5) ? 3 : 1
-                )
-            }
-
-            for y in stride(from: 0.0, through: size.height, by: 10) {
-                var path = Path()
-                path.move(to: CGPoint(x: 0, y: y))
-                path.addLine(to: CGPoint(x: size.width, y: y))
-                context.stroke(
-                    path,
-                    with: .color(Int(y / 10).isMultiple(of: 5) ? .black : .red),
-                    lineWidth: Int(y / 10).isMultiple(of: 5) ? 3 : 1
-                )
-            }
-        }
-    }
-}
-
 struct TimerIslandView: View {
     @EnvironmentObject private var store: WorkTimerStore
     @EnvironmentObject private var preferences: AppPreferences
     @ObservedObject var presentation: IslandPresentationState
     let openMainWindow: () -> Void
     @State private var isShowingDetails = false
+    @State private var isChoosingDuration = false
+    @State private var manualAddFeedbackPhase = ManualAddFeedbackPhase.idle
+    @State private var isHoldingManualAddFeedbackInteraction = false
+    @State private var manualAddFeedbackSequence = 0
 
     private var islandRecordingMode: ActivityRecordingMode {
         preferences.recordingMode.notchMode
@@ -863,11 +781,11 @@ struct TimerIslandView: View {
                     if presentation.isExpanded {
                         expandedContent(at: context.date)
                             .transition(
-                                .asymmetric(
-                                    insertion: .opacity.combined(
-                                        with: .scale(scale: 0.97)
-                                    ),
-                                    removal: .opacity
+                                .opacity.animation(
+                                    .easeOut(
+                                        duration: NotchAnimationTiming
+                                            .contentResponse
+                                    )
                                 )
                             )
                     } else {
@@ -910,19 +828,22 @@ struct TimerIslandView: View {
                                     }
                             }
                         }
-                        .transition(.opacity)
+                        .transition(
+                            .opacity.animation(
+                                .easeOut(
+                                    duration: NotchAnimationTiming
+                                        .contentResponse
+                                )
+                            )
+                        )
                     }
                 }
             }
         }
         .contentShape(Rectangle())
-        .animation(
-            presentation.isExpanded
-                ? .spring(response: 0.24, dampingFraction: 0.86)
-                : .easeOut(duration: 0.08),
-            value: presentation.isExpanded
-        )
         .onChange(of: preferences.recordingMode) { _ in
+            isChoosingDuration = false
+            cancelManualAddFeedback()
             isShowingDetails = false
         }
     }
@@ -1051,6 +972,7 @@ struct TimerIslandView: View {
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
                     }
+                    .frame(height: IslandSessionIdentityLayout.activeRowHeight)
                 }
 
                 if activeWork.isRunning {
@@ -1066,6 +988,9 @@ struct TimerIslandView: View {
                                 IslandActionButton(
                                     title: "Pause",
                                     systemName: "pause.fill",
+                                    liquidTint: IslandLiquidGlassStyle.pauseActionTint,
+                                    liquidTintOpacity: IslandLiquidGlassStyle.vividActionTintOpacity,
+                                    usesHighContrastLiquidLabel: true,
                                     action: { pause(at: date) }
                                 )
                                 .frame(
@@ -1078,6 +1003,9 @@ struct TimerIslandView: View {
                                     title: "Finish",
                                     systemName: "stop.fill",
                                     tint: .indigo,
+                                    liquidTint: IslandLiquidGlassStyle.finishActionTint,
+                                    liquidTintOpacity: IslandLiquidGlassStyle.vividActionTintOpacity,
+                                    usesHighContrastLiquidLabel: true,
                                     action: { finish(at: date) }
                                 )
                                 .frame(width: unitWidth)
@@ -1097,6 +1025,9 @@ struct TimerIslandView: View {
                             IslandActionButton(
                                 title: "Pause",
                                 systemName: "pause.fill",
+                                liquidTint: IslandLiquidGlassStyle.pauseActionTint,
+                                liquidTintOpacity: IslandLiquidGlassStyle.vividActionTintOpacity,
+                                usesHighContrastLiquidLabel: true,
                                 action: { pause(at: date) }
                             )
 
@@ -1104,6 +1035,9 @@ struct TimerIslandView: View {
                                 title: "Finish",
                                 systemName: "checkmark",
                                 tint: .indigo,
+                                liquidTint: IslandLiquidGlassStyle.finishActionTint,
+                                liquidTintOpacity: IslandLiquidGlassStyle.vividActionTintOpacity,
+                                usesHighContrastLiquidLabel: true,
                                 action: { finish(at: date) }
                             )
                         }
@@ -1123,6 +1057,9 @@ struct TimerIslandView: View {
                                     title: "Resume",
                                     systemName: "play.fill",
                                     tint: .green,
+                                    liquidTint: IslandLiquidGlassStyle.resumeActionTint,
+                                    liquidTintOpacity: IslandLiquidGlassStyle.resumeActionTintOpacity,
+                                    usesHighContrastLiquidLabel: true,
                                     action: { resume(at: date) }
                                 )
                                 .frame(width: unitWidth)
@@ -1131,6 +1068,9 @@ struct TimerIslandView: View {
                                     title: "Discard",
                                     systemName: "trash.fill",
                                     tint: .red,
+                                    liquidTint: IslandLiquidGlassStyle.discardActionTint,
+                                    liquidTintOpacity: IslandLiquidGlassStyle.vividActionTintOpacity,
+                                    usesHighContrastLiquidLabel: true,
                                     action: discard
                                 )
                                 .frame(width: unitWidth)
@@ -1139,6 +1079,9 @@ struct TimerIslandView: View {
                                     title: "Finish",
                                     systemName: "stop.fill",
                                     tint: .indigo,
+                                    liquidTint: IslandLiquidGlassStyle.finishActionTint,
+                                    liquidTintOpacity: IslandLiquidGlassStyle.vividActionTintOpacity,
+                                    usesHighContrastLiquidLabel: true,
                                     action: { finish(at: date) }
                                 )
                                 .frame(width: unitWidth)
@@ -1164,6 +1107,9 @@ struct TimerIslandView: View {
                                     title: "Resume",
                                     systemName: "play.fill",
                                     tint: .green,
+                                    liquidTint: IslandLiquidGlassStyle.resumeActionTint,
+                                    liquidTintOpacity: IslandLiquidGlassStyle.resumeActionTintOpacity,
+                                    usesHighContrastLiquidLabel: true,
                                     action: { resume(at: date) }
                                 )
                                 .frame(width: unitWidth)
@@ -1172,6 +1118,9 @@ struct TimerIslandView: View {
                                     title: "Discard",
                                     systemName: "trash.fill",
                                     tint: .red,
+                                    liquidTint: IslandLiquidGlassStyle.discardActionTint,
+                                    liquidTintOpacity: IslandLiquidGlassStyle.vividActionTintOpacity,
+                                    usesHighContrastLiquidLabel: true,
                                     action: discard
                                 )
                                 .frame(width: unitWidth)
@@ -1180,6 +1129,9 @@ struct TimerIslandView: View {
                                     title: "Finish",
                                     systemName: "checkmark",
                                     tint: .indigo,
+                                    liquidTint: IslandLiquidGlassStyle.finishActionTint,
+                                    liquidTintOpacity: IslandLiquidGlassStyle.vividActionTintOpacity,
+                                    usesHighContrastLiquidLabel: true,
                                     action: { finish(at: date) }
                                 )
                                 .frame(width: unitWidth * 2)
@@ -1217,12 +1169,14 @@ struct TimerIslandView: View {
                 case .timer:
                     IslandDurationControl(
                         kind: .timer,
-                        presentation: presentation
+                        presentation: presentation,
+                        isChoosingDuration: $isChoosingDuration
                     )
                 case .manual:
                     IslandDurationControl(
                         kind: .manual,
-                        presentation: presentation
+                        presentation: presentation,
+                        isChoosingDuration: $isChoosingDuration
                     )
                 case .stopwatch, .pomodoro:
                     if let idleDigitalTime {
@@ -1249,6 +1203,7 @@ struct TimerIslandView: View {
 
                 idlePrimaryButton(at: date)
             }
+            .frame(height: IslandSessionIdentityLayout.idleRowHeight)
 
             if store.availableTasks.isEmpty {
                 Text("Open the main window and create an activity first.")
@@ -1382,13 +1337,17 @@ struct TimerIslandView: View {
     private func idlePrimaryButton(at date: Date) -> some View {
         if islandRecordingMode == .manual {
             IslandActionButton(
-                title: "Add",
-                systemName: "plus",
+                title: manualAddFeedbackPhase.title,
+                systemName: manualAddFeedbackPhase.systemName,
+                labelOpacity: manualAddFeedbackPhase.labelOpacity,
+                labelTransitionDuration:
+                    manualAddFeedbackPhase.labelTransitionDuration,
                 tint: .green,
                 liquidTint: IslandLiquidGlassStyle.primaryActionTint,
                 liquidTintOpacity: IslandLiquidGlassStyle.primaryActionTintOpacity,
                 usesHighContrastLiquidLabel: true,
                 isDisabled: !store.canStart,
+                isInteractionLocked: manualAddFeedbackPhase.locksInteraction,
                 action: { addManualSession(at: date) }
             )
             .frame(width: 112)
@@ -1408,6 +1367,10 @@ struct TimerIslandView: View {
     }
 
     private func addManualSession(at date: Date) {
+        guard manualAddFeedbackPhase == .idle else {
+            return
+        }
+
         guard store.addManualSession(
             duration: TimeInterval(preferences.manualDurationMinutes * 60),
             anchorDate: date,
@@ -1420,8 +1383,65 @@ struct TimerIslandView: View {
             return
         }
 
-        isShowingDetails = false
-        presentation.isExpanded = false
+        manualAddFeedbackSequence += 1
+        let sequence = manualAddFeedbackSequence
+        holdManualAddFeedbackInteraction()
+        manualAddFeedbackPhase = .fadingOut
+        isChoosingDuration = false
+
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + ManualAddFeedbackTiming.labelFadeOutDuration
+        ) {
+            guard manualAddFeedbackSequence == sequence else {
+                return
+            }
+            manualAddFeedbackPhase = .confirmed
+        }
+
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + ManualAddFeedbackTiming.confirmationDuration
+        ) {
+            guard manualAddFeedbackSequence == sequence else {
+                return
+            }
+            presentation.isExpanded = false
+            releaseManualAddFeedbackInteraction()
+            resetManualAddStateAfterCollapse(sequence: sequence)
+        }
+    }
+
+    private func resetManualAddStateAfterCollapse(sequence: Int) {
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + ManualAddFeedbackTiming.resetDelayAfterCollapse
+        ) {
+            guard manualAddFeedbackSequence == sequence else {
+                return
+            }
+            isShowingDetails = false
+            manualAddFeedbackPhase = .idle
+        }
+    }
+
+    private func holdManualAddFeedbackInteraction() {
+        guard !isHoldingManualAddFeedbackInteraction else {
+            return
+        }
+        isHoldingManualAddFeedbackInteraction = true
+        presentation.beginInteraction()
+    }
+
+    private func releaseManualAddFeedbackInteraction() {
+        guard isHoldingManualAddFeedbackInteraction else {
+            return
+        }
+        isHoldingManualAddFeedbackInteraction = false
+        presentation.endInteraction()
+    }
+
+    private func cancelManualAddFeedback() {
+        manualAddFeedbackSequence += 1
+        manualAddFeedbackPhase = .idle
+        releaseManualAddFeedbackInteraction()
     }
 
     private func completionContent(
@@ -1450,6 +1470,7 @@ struct TimerIslandView: View {
                         )
                         .foregroundStyle(.white)
                 }
+                .frame(height: IslandSessionIdentityLayout.activeRowHeight)
             }
 
             IslandActionButton(
@@ -1610,9 +1631,7 @@ private struct IslandDurationControl: View {
     @EnvironmentObject private var preferences: AppPreferences
     let kind: IslandDurationKind
     @ObservedObject var presentation: IslandPresentationState
-    @AppStorage(ManualDurationOptions.stepPreferenceKey)
-    private var step = ManualDurationOptions.defaultMinuteStep
-    @State private var isChoosingDuration = false
+    @Binding var isChoosingDuration: Bool
     @State private var isHoldingInteraction = false
 
     private var durationMinutes: Int {
@@ -1687,7 +1706,7 @@ private struct IslandDurationControl: View {
             DurationPicker(
                 hours: hoursBinding,
                 minutes: minutesBinding,
-                step: $step
+                step: preferences.durationMinuteStep
             )
             .padding(12)
             .onDisappear(perform: releaseInteraction)
@@ -2001,37 +2020,69 @@ private struct IslandActionButton: View {
 
     let title: String
     let systemName: String
+    var labelOpacity = 1.0
+    var labelTransitionDuration: TimeInterval = 0.2
     var tint: Color = .white
     var liquidTint: Color? = nil
     var liquidTintOpacity = 0.52
     var usesHighContrastLiquidLabel = false
     var isDisabled = false
+    var isInteractionLocked = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Label(title, systemImage: systemName)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(labelColor)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 9)
-                .islandSurface(
-                    in: Capsule(),
-                    classicFill: tint.opacity(0.13),
-                    classicStroke: tint.opacity(0.18),
-                    liquidTint: liquidTint ?? tint,
-                    liquidTintOpacity: liquidTintOpacity
+            actionLabel(title: title, systemName: systemName)
+                .opacity(labelOpacity)
+                .scaleEffect(labelOpacity == 0 ? 0.94 : 1)
+                .offset(y: labelOpacity == 0 ? -2 : 0)
+                .animation(
+                    .easeInOut(duration: labelTransitionDuration),
+                    value: labelOpacity
                 )
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 9)
+            .islandSurface(
+                in: Capsule(),
+                classicFill: tint.opacity(0.13),
+                classicStroke: tint.opacity(0.18),
+                liquidTint: liquidTint ?? tint,
+                liquidTintOpacity: liquidTintOpacity
+            )
         }
         .buttonStyle(IslandButtonStyle())
-        .disabled(isDisabled)
+        .disabled(isDisabled || isInteractionLocked)
         .opacity(isDisabled ? 0.42 : 1)
+        .accessibilityLabel(title)
+    }
+
+    private func actionLabel(
+        title: String,
+        systemName: String
+    ) -> some View {
+        return Label(title, systemImage: systemName)
+            .font(.system(size: 12, weight: labelWeight))
+            .foregroundStyle(labelColor)
+            .shadow(
+                color: highContrastLabel
+                    ? .black.opacity(0.58)
+                    : .clear,
+                radius: highContrastLabel ? 0.8 : 0,
+                y: highContrastLabel ? 0.5 : 0
+            )
+    }
+
+    private var highContrastLabel: Bool {
+        usesHighContrastLiquidLabel
+            && preferences.appearance == .liquidGlass
     }
 
     private var labelColor: Color {
-        usesHighContrastLiquidLabel && preferences.appearance == .liquidGlass
-            ? .white
-            : tint
+        highContrastLabel ? .white : tint
+    }
+
+    private var labelWeight: Font.Weight {
+        highContrastLabel ? .bold : .semibold
     }
 }
 

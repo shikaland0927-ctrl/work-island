@@ -38,6 +38,57 @@ final class ApplicationLifecycleTests: XCTestCase {
         )
     }
 
+    func testQABundleRequiresAbsoluteIsolatedStorageAndPreferences() throws {
+        let storageURL = URL(fileURLWithPath: "/tmp/work-island-layout-qa.json")
+        let suiteName = "local.shikazeriku.work-island.qa.layout.preferences"
+
+        let configuration = try XCTUnwrap(
+            ApplicationQAIsolationConfiguration.resolve(
+                bundleIdentifier: "local.shikazeriku.work-island.qa.layout",
+                infoDictionary: [
+                    ApplicationQAIsolationConfiguration.storagePathInfoKey:
+                        storageURL.path,
+                    ApplicationQAIsolationConfiguration.defaultsSuiteInfoKey:
+                        suiteName,
+                    ApplicationQAIsolationConfiguration.keepsNotchExpandedInfoKey:
+                        true
+                ]
+            )
+        )
+
+        XCTAssertEqual(configuration.storageURL, storageURL)
+        XCTAssertEqual(configuration.defaultsSuiteName, suiteName)
+        XCTAssertTrue(configuration.keepsNotchExpanded)
+    }
+
+    func testProductionBundleIgnoresQAIsolationMetadata() {
+        XCTAssertNil(
+            ApplicationQAIsolationConfiguration.resolve(
+                bundleIdentifier: "local.shikazeriku.work-island",
+                infoDictionary: [
+                    ApplicationQAIsolationConfiguration.storagePathInfoKey:
+                        "/tmp/work-island-layout-qa.json",
+                    ApplicationQAIsolationConfiguration.defaultsSuiteInfoKey:
+                        "local.shikazeriku.work-island.qa.layout.preferences"
+                ]
+            )
+        )
+    }
+
+    func testQABundleRejectsRelativeStoragePath() {
+        XCTAssertNil(
+            ApplicationQAIsolationConfiguration.resolve(
+                bundleIdentifier: "local.shikazeriku.work-island.qa.layout",
+                infoDictionary: [
+                    ApplicationQAIsolationConfiguration.storagePathInfoKey:
+                        "work-data.json",
+                    ApplicationQAIsolationConfiguration.defaultsSuiteInfoKey:
+                        "local.shikazeriku.work-island.qa.layout.preferences"
+                ]
+            )
+        )
+    }
+
     func testDidFinishLaunchingBuildsAndShowsNotchWithoutMainWindow() throws {
         let panel = TestIslandPanel()
         let delegate = try makeDelegate(

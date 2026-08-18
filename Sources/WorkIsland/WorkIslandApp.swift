@@ -55,16 +55,11 @@ struct WorkIslandApp: App {
         }
     }
 
-    @ViewBuilder
     private var mainContent: some View {
-        if ApplicationQAConfiguration.showsGlassRefractionFixture {
-            IslandRefractionFixtureView()
-        } else {
-            RootView()
-                .environmentObject(appDelegate.store)
-                .environmentObject(appDelegate.preferences)
-                .environmentObject(appDelegate.launchAtLogin)
-        }
+        RootView()
+            .environmentObject(appDelegate.store)
+            .environmentObject(appDelegate.preferences)
+            .environmentObject(appDelegate.launchAtLogin)
     }
 }
 

@@ -30,10 +30,13 @@ Before changing or diagnosing Work Island:
 - The notch intentionally has no hover descriptions, including native `.help`; accessibility labels remain. Ambiguous icon-only controls in ordinary Windows must keep immediate hover help and accessibility labels.
 - Avoid visual movement when a mode or state changes. Timer and Pomodoro clocks, Activity/Item rows, and Start/Resume/Finish/Complete controls need stable painted positions.
 - Align painted control edges, not just container frames. Right-edge consistency is an explicit product preference.
-- Notch Timer and Manual must use the exact same vertical `Hours | Minutes | Step` duration control. History Edit remains a separate compact Hours/Minutes menu with an adjacent Step control.
+- Notch Timer and Manual must use the exact same vertical `Hours | Minutes` duration control. One shared Step lives in Settings > Timing; History Edit remains a separate compact Hours/Minutes menu with an adjacent Step control backed by the same preference.
 - Manual Add uses the current moment as its timestamp anchor. `Settings > Timing > Set As` chooses Start or End, defaults to End, and the notch must not duplicate Date, Time, or Set As controls.
-- Settings > Timing renders Pomodoro Focus, Break, Long, and Sessions through one shared field layout. Every heading is trailing-aligned, every painted menu has the same width as its column, and every visible inter-menu gap is equal.
-- Dashboard permanently places Total and Stats side by side. Stats is not hideable or reorderable and must not appear in Settings; only Heatmap, Graph, and Distribution are optional. Total has no mini chart. Stats has no `All time` subtitle and its fixed metric order is `Streak | Longest Streak | Best Day`.
+- Settings > Timing owns the shared Timer/Manual Step and renders Pomodoro Focus, Break, Long, and Sessions through one shared field layout. Every heading is trailing-aligned, every painted menu has the same width as its column, and every visible inter-menu gap is equal.
+- Glass applies only to the expanded notch. The main Window remains Classic, including its background, cards, buttons, and Graph/Distribution arrows; segmented choices may use smooth moving selection motion without adopting glass materials or Glass colors. The persisted appearance raw value remains `liquidGlass` for compatibility, but user-facing copy is `Glass`.
+- Dashboard permanently places Total and Status side by side. Status is not hideable or reorderable and must not appear in Settings; only Heatmap, Graph, and Distribution are optional. Total has no mini chart. Status has no `All time` subtitle and its fixed metric order is `Streak | Longest Streak | Best Day`. Heatmap color is fixed to Indigo and has no Settings control.
+- Blur is fixed at `8`, Refraction at neutral `1.00`, Frost at `6`, Bezel Depth at `0`, and notch opening/closing speed at `75%`; none has a Settings control. Legacy preference keys remain untouched but ignored.
+- Dashboard, Activities, History, and Settings use the same 28-point scroll-content top inset. Activities must reserve its vertical scroller even when the list is too short to scroll so card width does not change with record count.
 - Do not change an established symbol merely because its control moves. Identity symbols must not resemble completion symbols.
 
 ## Data and state safety — stop if uncertain

@@ -41,7 +41,7 @@ struct DurationPickerLayout {
     static let triggerWidth: CGFloat = 118
 
     static var contentWidth: CGFloat {
-        columnWidth * 3 + columnSpacing * 2
+        columnWidth * 2 + columnSpacing
     }
 }
 
@@ -271,12 +271,22 @@ struct SessionTimestampControls: View {
 }
 
 struct SessionDurationControls: View {
+    @EnvironmentObject private var preferences: AppPreferences
     @Binding var hours: Int
     @Binding var minutes: Int
 
-    @AppStorage(ManualDurationOptions.stepPreferenceKey)
-    private var step = ManualDurationOptions.defaultMinuteStep
     @State private var isChoosingStep = false
+
+    private var step: Int {
+        preferences.durationMinuteStep
+    }
+
+    private var stepBinding: Binding<Int> {
+        Binding(
+            get: { preferences.durationMinuteStep },
+            set: { preferences.setDurationMinuteStep($0) }
+        )
+    }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: SessionDurationLayout.fieldSpacing) {
@@ -318,23 +328,17 @@ struct SessionDurationControls: View {
                 .accessibilityValue("\(step) minutes")
                 .help("Sets the interval shown in Minutes.")
                 .popover(isPresented: $isChoosingStep, arrowEdge: .bottom) {
-                    MinuteStepEditor(step: $step)
+                    MinuteStepEditor(step: stepBinding)
                         .padding(12)
                 }
             }
         }
         .frame(width: SessionDurationLayout.width, alignment: .leading)
         .fixedSize(horizontal: true, vertical: false)
-        .onAppear(perform: normalizeStep)
-        .onChange(of: step) { newStep in
-            let normalized = ManualDurationOptions.normalizedStep(newStep)
-            guard normalized == newStep else {
-                step = normalized
-                return
-            }
+        .onChange(of: preferences.durationMinuteStep) { newStep in
             minutes = ManualDurationOptions.snappedMinute(
                 minutes,
-                step: normalized
+                step: newStep
             )
         }
     }
@@ -345,13 +349,6 @@ struct SessionDurationControls: View {
             return choices
         }
         return (choices + [minutes]).sorted()
-    }
-
-    private func normalizeStep() {
-        let normalized = ManualDurationOptions.normalizedStep(step)
-        if step != normalized {
-            step = normalized
-        }
     }
 
     private func durationField<Content: View>(
@@ -444,7 +441,7 @@ private struct MinuteStepEditor: View {
 struct DurationPicker: View {
     @Binding var hours: Int
     @Binding var minutes: Int
-    @Binding var step: Int
+    let step: Int
 
     var body: some View {
         HStack(alignment: .top, spacing: DurationPickerLayout.columnSpacing) {
@@ -461,44 +458,20 @@ struct DurationPicker: View {
                 selection: $minutes,
                 suffix: "min"
             )
-
-            DurationValueColumn(
-                title: "Step",
-                values: Array(ManualDurationOptions.minuteStepRange),
-                selection: $step,
-                suffix: "min"
-            )
         }
         .frame(width: DurationPickerLayout.contentWidth)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Duration")
-        .onAppear(perform: normalizeStep)
-        .onChange(of: step) { newStep in
-            let normalized = ManualDurationOptions.normalizedStep(newStep)
-            guard normalized == newStep else {
-                step = normalized
-                return
-            }
-            minutes = ManualDurationOptions.snappedMinute(
-                minutes,
-                step: normalized
-            )
-        }
     }
 
     private var minuteChoices: [Int] {
-        let choices = ManualDurationOptions.minutes(for: step)
+        let choices = ManualDurationOptions.minutes(
+            for: ManualDurationOptions.normalizedStep(step)
+        )
         guard (0..<60).contains(minutes), !choices.contains(minutes) else {
             return choices
         }
         return (choices + [minutes]).sorted()
-    }
-
-    private func normalizeStep() {
-        let normalized = ManualDurationOptions.normalizedStep(step)
-        if step != normalized {
-            step = normalized
-        }
     }
 }
 

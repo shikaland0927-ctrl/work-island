@@ -1,4 +1,27 @@
+import AppKit
 import SwiftUI
+
+enum ActivitiesPageLayout {
+    static let newActivityPlaceholder = "e.g. Thesis, Client work"
+    static let contentMargin = MainPageLayout.contentInset
+    static let autohidesVerticalScroller = false
+    static let reservedVerticalScrollerWidth = NSScroller.scrollerWidth(
+        for: .regular,
+        scrollerStyle: .legacy
+    )
+    static let maximumContentWidth =
+        MainPageLayout.standardMaximumContentWidth - reservedVerticalScrollerWidth
+    static let nativeListLeadingInset: CGFloat = 8
+    static let nativeListTrailingInset: CGFloat = 9
+
+    static var appliedLeadingContentMargin: CGFloat {
+        contentMargin - nativeListLeadingInset
+    }
+
+    static var appliedTrailingContentMargin: CGFloat {
+        contentMargin - nativeListTrailingInset
+    }
+}
 
 struct TasksView: View {
     @EnvironmentObject private var store: WorkTimerStore
@@ -6,26 +29,40 @@ struct TasksView: View {
     @State private var itemEditor: ActivityItemEditorRequest?
 
     var body: some View {
-        HStack(spacing: 0) {
-            List {
+        List {
+            ActivitiesAlignedRow {
                 newActivityCard
-                    .listRowInsets(EdgeInsets())
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
+            }
+            .background(ActivitiesScrollViewConfigurator())
+            .listRowInsets(
+                EdgeInsets(
+                    top: ActivitiesPageLayout.contentMargin,
+                    leading: 0,
+                    bottom: 0,
+                    trailing: 0
+                )
+            )
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
 
-                Section {
-                    if store.availableTasks.isEmpty {
+            Section {
+                if store.availableTasks.isEmpty {
+                    ActivitiesAlignedRow {
                         EmptyTasksRow(
                             systemImage: "tray",
                             message: "Add an activity or restore one from the archive."
                         )
                         .padding(22)
                         .workCard()
-                        .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                    } else {
-                        ForEach(store.availableTasks) { task in
+                    }
+                    .listRowInsets(
+                        EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0)
+                    )
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                } else {
+                    ForEach(store.availableTasks) { task in
+                        ActivitiesAlignedRow {
                             ActivityManagementRow(
                                 task: task,
                                 addItem: { kind in
@@ -44,13 +81,17 @@ struct TasksView: View {
                             )
                             .padding(22)
                             .workCard()
-                            .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
                         }
-                        .onMove(perform: store.moveTasks)
+                        .listRowInsets(
+                            EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0)
+                        )
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                     }
-                } header: {
+                    .onMove(perform: store.moveTasks)
+                }
+            } header: {
+                ActivitiesAlignedRow {
                     HStack {
                         Text("Active")
                             .font(.title3.weight(.semibold))
@@ -61,21 +102,21 @@ struct TasksView: View {
                     }
                     .textCase(nil)
                 }
-
-                if !store.archivedTasks.isEmpty {
-                    archivedActivitiesCard
-                        .listRowInsets(EdgeInsets(top: 14, leading: 0, bottom: 0, trailing: 0))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                }
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .frame(maxWidth: 900)
 
-            Spacer(minLength: 0)
+            if !store.archivedTasks.isEmpty {
+                ActivitiesAlignedRow {
+                    archivedActivitiesCard
+                }
+                .listRowInsets(
+                    EdgeInsets(top: 14, leading: 0, bottom: 0, trailing: 0)
+                )
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
         }
-        .padding(28)
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .navigationTitle("Activities")
         .sheet(item: $itemEditor) { request in
             ActivityItemEditorSheet(request: request)
@@ -89,9 +130,12 @@ struct TasksView: View {
                 .font(.title3.weight(.semibold))
 
             HStack(spacing: 10) {
-                TextField("e.g. English, Thesis, Client work", text: $newTaskName)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit(addTask)
+                TextField(
+                    ActivitiesPageLayout.newActivityPlaceholder,
+                    text: $newTaskName
+                )
+                .textFieldStyle(.roundedBorder)
+                .onSubmit(addTask)
 
                 Button(action: addTask) {
                     Label("Add Activity", systemImage: "plus")
@@ -137,6 +181,57 @@ struct TasksView: View {
             return
         }
         newTaskName = ""
+    }
+}
+
+struct ActivitiesAlignedRow<Content: View>: View {
+    private let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            content.frame(maxWidth: ActivitiesPageLayout.maximumContentWidth)
+            Spacer(minLength: 0)
+        }
+        .padding(
+            .leading,
+            ActivitiesPageLayout.appliedLeadingContentMargin
+        )
+        .padding(
+            .trailing,
+            ActivitiesPageLayout.appliedTrailingContentMargin
+        )
+    }
+}
+
+struct ActivitiesScrollViewConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> ScrollViewProbe {
+        ScrollViewProbe()
+    }
+
+    func updateNSView(_ view: ScrollViewProbe, context: Context) {
+        view.configureEnclosingScrollView()
+    }
+
+    final class ScrollViewProbe: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            configureEnclosingScrollView()
+        }
+
+        func configureEnclosingScrollView() {
+            DispatchQueue.main.async { [weak self] in
+                guard let scrollView = self?.enclosingScrollView else {
+                    return
+                }
+                scrollView.hasVerticalScroller = true
+                scrollView.autohidesScrollers = ActivitiesPageLayout
+                    .autohidesVerticalScroller
+            }
+        }
     }
 }
 

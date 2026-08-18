@@ -4,13 +4,87 @@ import SwiftUI
 struct WorkAppearanceStyle {
     static let cardCornerRadius: CGFloat = 20
     static let cardBorderWidth: CGFloat = 1
-    static let innerHighlightWidth: CGFloat = 0.5
-    static let cardShadowRadius: CGFloat = 18
-    static let cardShadowY: CGFloat = 8
+}
+
+struct MainPageLayout {
+    static let contentInset: CGFloat = 28
+    static let standardMaximumContentWidth: CGFloat = 900
+    static let dashboardMaximumContentWidth: CGFloat = 1_060
+
+    static func trailingContentInset(
+        for availableWidth: CGFloat,
+        maximumContentWidth: CGFloat
+    ) -> CGFloat {
+        max(
+            contentInset,
+            availableWidth - contentInset - maximumContentWidth
+        )
+    }
+}
+
+struct MainPageScrollContainer<Content: View>: View {
+    let maximumContentWidth: CGFloat
+    private let content: Content
+
+    init(
+        maximumContentWidth: CGFloat,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.maximumContentWidth = maximumContentWidth
+        self.content = content()
+    }
+
+    @ViewBuilder
+    var body: some View {
+        if #available(macOS 14.0, *) {
+            GeometryReader { geometry in
+                ScrollView {
+                    content
+                }
+                .contentMargins(
+                    .all,
+                    EdgeInsets(
+                        top: MainPageLayout.contentInset,
+                        leading: MainPageLayout.contentInset,
+                        bottom: MainPageLayout.contentInset,
+                        trailing: MainPageLayout.trailingContentInset(
+                            for: geometry.size.width,
+                            maximumContentWidth: maximumContentWidth
+                        )
+                    ),
+                    for: .scrollContent
+                )
+            }
+        } else {
+            ScrollView {
+                HStack(spacing: 0) {
+                    content.frame(maxWidth: maximumContentWidth)
+                    Spacer(minLength: 0)
+                }
+                .padding(MainPageLayout.contentInset)
+            }
+        }
+    }
+}
+
+struct WorkSegmentedPickerMotion {
+    static let response = 0.28
+    static let dampingFraction = 0.86
+
+    static var animation: Animation {
+        .spring(
+            response: response,
+            dampingFraction: dampingFraction
+        )
+    }
+}
+
+struct WorkSegmentedPickerStyle {
+    static let selectedFillOpacity = 0.24
+    static let selectedStrokeOpacity = 0.62
 }
 
 struct WorkSegmentedPicker<Option: Hashable>: View {
-    @EnvironmentObject private var preferences: AppPreferences
     @Namespace private var selectionNamespace
     @State private var highlightedSelection: Option?
 
@@ -21,29 +95,10 @@ struct WorkSegmentedPicker<Option: Hashable>: View {
     var tint: Color = .indigo
     var height: CGFloat = 32
 
-    @ViewBuilder
     var body: some View {
-        if preferences.appearance == .liquidGlass {
-            liquidPicker
-        } else {
-            Picker(accessibilityName, selection: $selection) {
-                ForEach(options, id: \.self) { option in
-                    Text(title(option))
-                        .tag(option)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.segmented)
-            .frame(height: height)
-            .accessibilityLabel(accessibilityName)
-        }
-    }
-
-    @ViewBuilder
-    private var liquidPicker: some View {
         let visualSelection = highlightedSelection ?? selection
         let track = RoundedRectangle(
-            cornerRadius: height * 0.34,
+            cornerRadius: height * 0.24,
             style: .continuous
         )
 
@@ -70,9 +125,9 @@ struct WorkSegmentedPicker<Option: Hashable>: View {
                         .contentShape(Rectangle())
                         .background {
                             if isSelected {
-                                WorkSegmentSelectionSurface(
+                                ClassicSegmentSelectionSurface(
                                     tint: tint,
-                                    cornerRadius: height * 0.27
+                                    cornerRadius: height * 0.18
                                 )
                                 .matchedGeometryEffect(
                                     id: "selection",
@@ -90,9 +145,9 @@ struct WorkSegmentedPicker<Option: Hashable>: View {
         }
         .padding(3)
         .frame(height: height)
-        .background(Color.primary.opacity(0.055), in: track)
+        .background(Color.primary.opacity(0.075), in: track)
         .overlay {
-            track.stroke(Color.primary.opacity(0.10), lineWidth: 1)
+            track.stroke(Color.primary.opacity(0.14), lineWidth: 1)
         }
         .clipShape(track)
         .accessibilityElement(children: .contain)
@@ -101,57 +156,41 @@ struct WorkSegmentedPicker<Option: Hashable>: View {
             highlightedSelection = selection
         }
         .onChange(of: selection) { newSelection in
-            withAnimation(.easeOut(duration: 0.18)) {
+            withAnimation(WorkSegmentedPickerMotion.animation) {
                 highlightedSelection = newSelection
             }
         }
     }
 }
 
-private struct WorkSegmentSelectionSurface: View {
+private struct ClassicSegmentSelectionSurface: View {
     let tint: Color
     let cornerRadius: CGFloat
 
-    @ViewBuilder
     var body: some View {
         let shape = RoundedRectangle(
             cornerRadius: cornerRadius,
             style: .continuous
         )
 
-        if #available(macOS 26.0, *) {
-            shape
-                .fill(tint.opacity(0.16))
-                .glassEffect(
-                    .clear.tint(tint.opacity(0.34)).interactive(true),
-                    in: shape
+        shape
+            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.96))
+            .overlay {
+                shape.fill(
+                    tint.opacity(
+                        WorkSegmentedPickerStyle.selectedFillOpacity
+                    )
                 )
-                .overlay { highlightBorder(shape: shape) }
-                .shadow(color: .black.opacity(0.14), radius: 3, y: 1)
-        } else {
-            shape
-                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.92))
-                .overlay { shape.fill(tint.opacity(0.18)) }
-                .overlay { highlightBorder(shape: shape) }
-                .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
-        }
-    }
-
-    private func highlightBorder(
-        shape: RoundedRectangle
-    ) -> some View {
-        shape.stroke(
-            LinearGradient(
-                colors: [
-                    Color.white.opacity(0.42),
-                    tint.opacity(0.30),
-                    Color.primary.opacity(0.08)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            lineWidth: 1
-        )
+            }
+            .overlay {
+                shape.stroke(
+                    tint.opacity(
+                        WorkSegmentedPickerStyle.selectedStrokeOpacity
+                    ),
+                    lineWidth: 1
+                )
+            }
+            .shadow(color: .black.opacity(0.16), radius: 2, y: 1)
     }
 }
 
@@ -306,7 +345,6 @@ private enum AppSection: String, CaseIterable, Identifiable {
 
 private struct SidebarStatusView: View {
     @EnvironmentObject private var store: WorkTimerStore
-    @EnvironmentObject private var preferences: AppPreferences
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -339,12 +377,7 @@ private struct SidebarStatusView: View {
             }
             .padding(10)
         }
-        .modifier(
-            SidebarStatusBackground(
-                appearance: preferences.appearance,
-                tint: statusColor
-            )
-        )
+        .modifier(SidebarStatusBackground())
     }
 
     private var statusTitle: String {
@@ -370,175 +403,41 @@ private struct SidebarStatusView: View {
 }
 
 private struct SidebarStatusBackground: ViewModifier {
-    let appearance: WorkIslandAppearance
-    let tint: Color
-
-    @ViewBuilder
     func body(content: Content) -> some View {
-        if appearance == .liquidGlass {
-            let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
-            content
-                .background(Color.primary.opacity(0.045), in: shape)
-                .background(tint.opacity(0.08), in: shape)
-                .overlay {
-                    shape.stroke(Color.white.opacity(0.16), lineWidth: 1)
-                }
-        } else {
-            content.background(
-                .quaternary.opacity(0.45),
-                in: RoundedRectangle(cornerRadius: 12)
-            )
-        }
+        content.background(
+            .quaternary.opacity(0.45),
+            in: RoundedRectangle(cornerRadius: 12)
+        )
     }
 }
 
 struct AppBackground: View {
-    @EnvironmentObject private var preferences: AppPreferences
-
     var body: some View {
-        ZStack {
-            Color(nsColor: .windowBackgroundColor)
-
-            RadialGradient(
-                colors: [
-                    Color.indigo.opacity(
-                        preferences.appearance == .liquidGlass ? 0.18 : 0.13
-                    ),
-                    Color.clear
-                ],
-                center: .topTrailing,
-                startRadius: 20,
-                endRadius: 520
-            )
-
-            if preferences.appearance == .liquidGlass {
-                RadialGradient(
-                    colors: [
-                        Color.indigo.opacity(0.07),
-                        Color.clear
-                    ],
-                    center: .bottomLeading,
-                    startRadius: 40,
-                    endRadius: 600
-                )
-            }
-        }
-        .ignoresSafeArea()
+        Color(nsColor: .windowBackgroundColor)
+            .ignoresSafeArea()
     }
 }
 
 struct CardBackground: ViewModifier {
-    @EnvironmentObject private var preferences: AppPreferences
-    var tint: Color = .indigo
-    var tintOpacity: Double = 0.08
-
-    @ViewBuilder
     func body(content: Content) -> some View {
-        if preferences.appearance == .liquidGlass {
-            content.modifier(
-                LiquidGlassSurface(
+        content
+            .background(
+                RoundedRectangle(
                     cornerRadius: WorkAppearanceStyle.cardCornerRadius,
-                    tint: tint,
-                    tintOpacity: tintOpacity,
-                    castsShadow: true
+                    style: .continuous
                 )
-            )
-        } else {
-            content
-                .background(
+                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.92))
+                .overlay(
                     RoundedRectangle(
                         cornerRadius: WorkAppearanceStyle.cardCornerRadius,
                         style: .continuous
                     )
-                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.92))
-                    .overlay(
-                        RoundedRectangle(
-                            cornerRadius: WorkAppearanceStyle.cardCornerRadius,
-                            style: .continuous
-                        )
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                    )
-                )
-        }
-    }
-}
-
-private struct LiquidGlassSurface: ViewModifier {
-    @Environment(\.colorScheme) private var colorScheme
-
-    let cornerRadius: CGFloat
-    let tint: Color
-    var tintOpacity: Double = 0.08
-    let castsShadow: Bool
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        let shape = RoundedRectangle(
-            cornerRadius: cornerRadius,
-            style: .continuous
-        )
-
-        if #available(macOS 26.0, *) {
-            content
-                .glassEffect(
-                    .regular.tint(tint.opacity(tintOpacity)),
-                    in: shape
-                )
-                .overlay { glassBorder(shape: shape) }
-                .shadow(
-                    color: castsShadow ? shadowColor : .clear,
-                    radius: castsShadow
-                        ? WorkAppearanceStyle.cardShadowRadius
-                        : 0,
-                    y: castsShadow ? WorkAppearanceStyle.cardShadowY : 0
-                )
-        } else {
-            content
-                .background(.ultraThinMaterial, in: shape)
-                .background(tint.opacity(tintOpacity * 0.75), in: shape)
-                .overlay { glassBorder(shape: shape) }
-                .shadow(
-                    color: castsShadow ? shadowColor : .clear,
-                    radius: castsShadow
-                        ? WorkAppearanceStyle.cardShadowRadius
-                        : 0,
-                    y: castsShadow ? WorkAppearanceStyle.cardShadowY : 0
-                )
-        }
-    }
-
-    private var shadowColor: Color {
-        .black.opacity(colorScheme == .dark ? 0.28 : 0.13)
-    }
-
-    private func glassBorder(
-        shape: RoundedRectangle
-    ) -> some View {
-        shape
-            .stroke(
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(
-                            colorScheme == .dark ? 0.28 : 0.68
-                        ),
-                        Color.primary.opacity(0.08),
-                        tint.opacity(0.18)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                lineWidth: WorkAppearanceStyle.cardBorderWidth
-            )
-            .overlay {
-                shape
-                    .inset(by: 1)
                     .stroke(
-                        Color.white.opacity(
-                            colorScheme == .dark ? 0.08 : 0.32
-                        ),
-                        lineWidth: WorkAppearanceStyle.innerHighlightWidth
+                        Color.primary.opacity(0.08),
+                        lineWidth: WorkAppearanceStyle.cardBorderWidth
                     )
-            }
+                )
+            )
     }
 }
 
@@ -550,19 +449,8 @@ private struct WorkSecondaryButtonStyleModifier: ViewModifier {
 }
 
 private struct WorkProminentButtonStyleModifier: ViewModifier {
-    @EnvironmentObject private var preferences: AppPreferences
-
-    @ViewBuilder
     func body(content: Content) -> some View {
-        if preferences.appearance == .liquidGlass {
-            if #available(macOS 26.0, *) {
-                content.buttonStyle(.glassProminent)
-            } else {
-                content.buttonStyle(.borderedProminent)
-            }
-        } else {
-            content.buttonStyle(.borderedProminent)
-        }
+        content.buttonStyle(.borderedProminent)
     }
 }
 
@@ -725,16 +613,8 @@ final class ActiveHoverTrackingNSView: NSView {
 }
 
 extension View {
-    func workCard(
-        tint: Color = .indigo,
-        tintOpacity: Double = 0.08
-    ) -> some View {
-        modifier(
-            CardBackground(
-                tint: tint,
-                tintOpacity: tintOpacity
-            )
-        )
+    func workCard() -> some View {
+        modifier(CardBackground())
     }
 
     func workSecondaryButtonStyle() -> some View {

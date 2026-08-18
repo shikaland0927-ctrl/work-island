@@ -4,7 +4,9 @@ struct HistoryView: View {
     @EnvironmentObject private var store: WorkTimerStore
 
     var body: some View {
-        ScrollView {
+        MainPageScrollContainer(
+            maximumContentWidth: MainPageLayout.standardMaximumContentWidth
+        ) {
             LazyVStack(alignment: .leading, spacing: 14) {
                 summary
 
@@ -20,8 +22,6 @@ struct HistoryView: View {
                     }
                 }
             }
-            .padding(28)
-            .frame(maxWidth: 900, alignment: .leading)
         }
         .navigationTitle("History")
     }
