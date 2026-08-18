@@ -92,7 +92,6 @@ enum WorkSegmentedPickerSurfaceStyle: Equatable {
 struct WorkControlGlassStyle {
     static let selectionTintOpacity = 0.34
     static let selectionShadowOpacity = 0.14
-    static let navigationButtonDiameter: CGFloat = 20
     static let bannerTintOpacity = 0.10
 }
 

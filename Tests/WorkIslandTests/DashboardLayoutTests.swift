@@ -219,11 +219,7 @@ final class DashboardLayoutTests: XCTestCase {
         XCTAssertGreaterThan(WorkControlGlassStyle.selectionTintOpacity, 0.2)
         XCTAssertLessThan(WorkControlGlassStyle.selectionTintOpacity, 0.5)
         XCTAssertLessThan(WorkControlGlassStyle.bannerTintOpacity, 0.2)
-        XCTAssertEqual(
-            WorkControlGlassStyle.navigationButtonDiameter * 2
-                + DashboardAnalyticsLayout.navigationButtonSpacing,
-            DashboardAnalyticsLayout.navigationWidth
-        )
+        XCTAssertEqual(DashboardAnalyticsLayout.navigationWidth, 64)
     }
 
     func testHistoryEditorKeepsDurationBesideTimestampWithAVisibleGroupGap() {
@@ -294,15 +290,15 @@ final class DashboardLayoutTests: XCTestCase {
     func testGraphAndDistributionPeriodControlsShareMonthRightEdge() {
         XCTAssertEqual(
             DashboardAnalyticsLayout.trailingPeriodControlsWidth,
-            308,
+            328,
             accuracy: 0.001
         )
         XCTAssertEqual(
             DashboardAnalyticsLayout.pickerTrailingInset,
-            58,
+            78,
             accuracy: 0.001
         )
-        XCTAssertEqual(DashboardAnalyticsLayout.navigationWidth, 44)
+        XCTAssertEqual(DashboardAnalyticsLayout.navigationWidth, 64)
         XCTAssertLessThan(
             DashboardAnalyticsLayout.graphPickerWidth,
             DashboardAnalyticsLayout.distributionPickerWidth

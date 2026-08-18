@@ -93,8 +93,8 @@ Refraction feasibility, researched against the macOS 26.5 SDK and Apple document
 ### Main Window
 
 - Navigation order: Dashboard, Activities, History, Settings.
-- `Notch Style` still changes only the expanded notch. The Window does not read that preference, but on macOS 26+ a small fixed set of control-layer surfaces always uses official native Glass: selected Dashboard periods, Graph/Distribution arrows, selected Routine schedule choices, shared opt-in primary/secondary actions, and the one-time notch introduction banner. Older macOS uses the existing Classic fallbacks.
-- The shared segmented control keeps its still outer track, labels, and damped spring. Dashboard period and Routine schedule selections opt into a restrained indigo-tinted interactive Glass surface; Settings choices and History Start/End deliberately retain the Classic selected surface.
+- `Notch Style` still changes only the expanded notch. The Window does not read that preference, but on macOS 26+ a small fixed set of control-layer surfaces always uses official native Glass: selected Dashboard periods, selected Routine schedule choices, Settings segmented choices, shared opt-in primary/secondary actions, and the one-time notch introduction banner. Dashboard period arrows use SwiftUI's native `.navigation` `ControlGroup`, which adopts the current system appearance independently of `Notch Style`. Older macOS uses the existing Classic fallbacks where applicable.
+- The shared segmented control keeps its still outer track, labels, and damped spring. Dashboard period, Routine schedule, and Settings selections opt into the same restrained indigo-tinted interactive Glass surface; History Start/End deliberately retains the Classic selected surface.
 - The Window background remains the uniform system background; cards, sidebar status, Total, charts, lists, fields, chips, and repeated row controls remain Classic. Native Glass controls are kept outside periodic `TimelineView` content so refreshes do not recreate their compositor surfaces.
 - Default size is 960×650; minimum is 840×540. The layout should not compress below this into broken rows.
 - Dashboard, Activities, History, and Settings use the same scroll-content container semantics and 28-point top inset, aligning Total/Status, New Activity, the History header, and General. Activities keeps its native `List`, permanently reserves its vertical scroller, and therefore keeps card width stable whether or not its content can scroll.
@@ -108,7 +108,7 @@ Dashboard:
 - Optional cards are Heatmap, Graph, and Distribution. Settings controls their visibility and native drag order; Status does not appear in Settings. Heatmap color is fixed to Indigo and has no Settings control.
 - Heatmap is Sunday-first, covers 365 days, includes inactive cells, and has no Less/More legend.
 - Graph uses activity-colored stacked bars for complete Sunday–Saturday Weeks or complete calendar Months.
-- Graph and Distribution keep the established 20-point chevrons in the fixed 44-point navigation slot, now with round interactive native Glass surfaces on macOS 26+ and borderless Classic fallbacks on older macOS.
+- Graph and Distribution keep their chevron symbols inside SwiftUI's native `.navigation` `ControlGroup`, with a 64-point reserved layout slot. The right arrow remains present but disabled at the current period, matching the native back/forward control behavior.
 - Distribution uses complete calendar Day, Week, or Month periods. Its legend is an intrinsic two-column Grid, so Activity names and their percentage/duration values remain near one another instead of being pushed to opposite edges.
 - Day Starts changes Dashboard logical-day allocation and period anchors only; it does not alter Routine recurrence or stored timestamps.
 
@@ -118,7 +118,7 @@ Activities:
 - Activity cards use the exact same shared Classic `.workCard()` surface and corner geometry as Dashboard, History, and Settings. There is no Activity-only frame or glass override.
 - The native Activities scroll container spans the full detail pane so its scrollbar shares the same trailing edge as Dashboard, History, and Settings. Each real List row now uses one alignment wrapper that compensates the native 8/9-point row gutters and reserved 17-point scroller width; its painted left, right, and top edges match the ordinary page container at constrained and capped widths while card geometry and native drag behavior remain unchanged.
 - New Activity uses the concise placeholder `e.g. Thesis, Client work`; the older `English` example is removed.
-- Activities can be created, renamed, drag-reordered, archived, restored, and deleted with confirmation.
+- Activities can be created, renamed, drag-reordered, archived, restored, and deleted with confirmation. Archived rows emit a deletion request to the stable Activities page; the alert and captured Activity ID no longer live inside a List row that can move or be recreated during scrolling.
 - Each Activity owns one mixed native drag-ordered list of incomplete Tasks and all Routines.
 - Completed Tasks move to a collapsible Completed section and return to their saved slot when restored.
 - Routines support Day/Week/Month intervals, weekdays, dates 1–31, Last, and ordinal weekday patterns. Their frequency, Dates/Pattern, and ordinal selections use the same selective Glass treatment as Dashboard periods on macOS 26+.
@@ -135,8 +135,8 @@ History:
 
 Settings and onboarding:
 
-- General: Notch Style, Launch at Login, Day Starts, and Open Notch mode. Notch Style retains the existing `appearanceStyle` key but now displays `Classic | Glass` and controls only the expanded notch. Blur, optical parameters, and Notch Speed have no Settings sections or rows.
-- Timing: Alert, compact Progress, Manual Set As Start/End, shared Timer/Manual Step, and Pomodoro Focus/Break/Long/Sessions. Step defaults to `5 min`, reuses the compatible `manualMinuteStep` key, and does not rewrite Timer or Manual's current duration when changed. The Pomodoro fields use one shared trailing-aligned native `NSPopUpButton` subtree; the standard macOS bezels themselves fill the same 76-point columns with equal 10-point visible gaps.
+- General: Notch Style, Launch at Login, Day Starts, and Open Notch mode. Notch Style retains the existing `appearanceStyle` key, displays `Classic | Glass`, and controls only the expanded notch. Notch Style and Open Notch use the same Glass-selected segmented surface as Dashboard periods. Blur, optical parameters, and Notch Speed have no Settings sections or rows.
+- Timing: Alert, compact Progress, Manual Set As Start/End, shared Timer/Manual Step, and Pomodoro Focus/Break/Long/Sessions. Alert and Manual Set As use the same Glass-selected segmented surface as Dashboard periods. Step defaults to `5 min`, reuses the compatible `manualMinuteStep` key, and does not rewrite Timer or Manual's current duration when changed. The Pomodoro fields use one shared trailing-aligned native `NSPopUpButton` subtree; the standard macOS bezels themselves fill the same 76-point columns with equal 10-point visible gaps.
 - Dashboard: optional Heatmap/Graph/Distribution visibility/order. Heatmap is fixed Indigo; Total and Status are not configurable. Its three-row reorder list uses balanced top/bottom insets and a rounded outer shape.
 - First run asks only for one initial Activity and Launch at Login, then shows `Move your pointer to the notch.` once.
 - Existing valid data must never trigger onboarding merely because an Activity or Item collection is empty.
@@ -201,52 +201,52 @@ Current source behavior seeds a default Activity only when no storage file exist
 
 The Store bundle `com.shikazeriku.workisland` is sandboxed and stores data in its own container. It does not automatically inherit direct-build data. Use File > Export in the direct app and File > Import in the Store app. Import writes `work-data-before-import.json` beside the Store data before replacement.
 
-Current direct data state, reverified after installing the native-control-Glass build without launching it on 2026-08-18—a safety reference, not a restore target:
+Current direct data state, reverified after installing 0.11.40 without launching it on 2026-08-19—a safety reference, not a restore target:
 
-- SHA-256: `15fd7f563c1acdb54d0d71957704afd179e8ef683e07d3cabd207c138e273d81`
+- SHA-256: `ec789874d9e3f9f68e8111c273e99ef6c413060c91d40690f574d116e5d78c7a`
 - schema 6
-- 3 Activities
+- 4 Activities: 3 active and 1 archived
 - 0 child Items
 - 50 records
 - no ActiveWork
-- complete exported preferences SHA-256: `f7f93e460c1196759afed23f942897c9076bcf1b809f8d96bd6bb62f3c4ef728`
+- complete exported preferences SHA-256: `0e83055b2e72eb086a0d398f38ffd3b3d9ce7a56ebfdfc54c05fadc77428d293`
 
-The current byte-for-byte safety snapshot is `.qa-backups.noindex/20260818-2352-pre-native-control-glass`. Its pre-install and post-install preference exports match exactly. Always inspect the live file and complete preferences domain again before any restoration; their hashes, record count, and ActiveWork can legitimately change after this verification.
+The current byte-for-byte safety snapshot is `.qa-backups.noindex/20260819-001006-pre-archived-delete`. Its pre-UI, pre-install, and post-install JSON/preferences exports match exactly. Always inspect the live file and complete preferences domain again before any restoration; their hashes, record count, and ActiveWork can legitimately change after this verification.
 
 ## Current build and installed state
 
-Last verified on 2026-08-18:
+Last verified on 2026-08-19:
 
 Direct development channel:
 
-- Source `Info.plist`: version 0.11.39, build 91
+- Source `Info.plist`: version 0.11.40, build 92
 - Staging: `dist.noindex/Work Island.app`
 - Installed: `/Applications/Work Island.app`
 - Bundle ID: `local.shikazeriku.work-island`
-- Staging and installed executable SHA-256 matched: `1b0493f95b5d51fd7636ab725e44d05a8e3ae3a397ed1dc05f688bd17aa93662`
+- Staging and installed executable SHA-256 matched: `57f795f12b769540c39cc5238d8e72d83c87fcb3a6de9f1c4fe6a42d7141d13f`
 - Development bundle is ad-hoc signed, not a friend-beta release.
-- The replaced installed 0.11.38 build 90 bundle is preserved at `dist.previous.noindex/Work Island 0.11.38 (90)-installed-replaced-by-0.11.39.app`; earlier preserved bundles remain under the same `.noindex` directory.
-- The unlaunched broad-scope intermediate 0.11.39 bundle is also preserved at `dist.previous.noindex/Work Island 0.11.39 (91)-pre-scope-adjustment.app`; the installed 0.11.39 is the later narrowed build.
+- The replaced installed 0.11.39 build 91 bundle is preserved at `dist.previous.noindex/Work Island 0.11.39 (91)-installed-replaced-by-0.11.40.app`; earlier preserved bundles remain under the same `.noindex` directory.
 - The new installed bundle has not been launched; the user owns visual and functional acceptance.
 
 Store channel:
 
-- Local target: version 1.0.0, build 75
+- Local target: version 1.0.0, build 76
 - Permanent bundle ID: `com.shikazeriku.workisland`
-- Latest local archive: `dist.appstore.noindex/Work Island 1.0.0 (75)-20260818-235625.xcarchive`
+- Latest local archive: `dist.appstore.noindex/Work Island 1.0.0 (76)-20260819-002817.xcarchive`
 - Archive is unsigned structural QA only, universal `x86_64 arm64`
-- Archived executable SHA-256: `4b77c3f8fe4a4edf1e9c18223fad03bc08688ed0f7ce20bdcd5656655b970b16`
+- Archived executable SHA-256: `c5109103eb3f9d684ca98a3a39d3abd955d86fb9d81f74455248b88f166eed91`
 - It has not been Distribution-signed, exported, uploaded, assigned to testers, or selected for review.
 
 Verification baseline:
 
-- All 119 Swift tests passed for the 0.11.39 source. The selective-control regression protects the restrained Glass tint and the existing 44-point Dashboard navigation geometry. Existing coverage continues to include fixed `75%` motion, Activity row alignment, Manual confirmation timing, the shared `34 pt` notch Activity row, vivid notch Glass actions, exact Resume/Start equality, fixed Blur `8`, fixed Indigo Heatmap, fresh Step `5 min`, inert legacy keys, `Classic | Glass` copy, persistent Activity scroller allocation, Status layout, and previous timer/data/recurrence behavior.
+- All 120 Swift tests passed for the 0.11.40 source. Regression coverage protects the restrained Glass tint, the 64-point native navigation slot, and archived Unicode Activity deletion with zero records. Existing coverage continues to include fixed `75%` motion, Activity row alignment, Manual confirmation timing, the shared `34 pt` notch Activity row, vivid notch Glass actions, exact Resume/Start equality, fixed Blur `8`, fixed Indigo Heatmap, fresh Step `5 min`, inert legacy keys, `Classic | Glass` copy, persistent Activity scroller allocation, Status layout, and previous timer/data/recurrence behavior.
 - On 2026-08-16 the user confirmed that the Activity page edge alignment and concise New Activity placeholder were correctly fixed.
 - Direct Release, strict ad-hoc bundle verification, staging/install hash parity, and unsigned universal Store archive checks passed. No new source file was added, so SwiftPM and Xcode continue to compile the same source membership.
 - Computer Use clicked the real Start control in an isolated Glass-notch copy of the production Activity fixture before and after the fix. The fixed before/after Activity crop had best vertical displacement `0 px`, correlation `0.9999995879`, and identical luminance centroids at thresholds 200, 220, and 240. Evidence is under `.qa.noindex/activity-layout-20260815-150503/` as `user-before-idle.jpg`, `user-before-running.jpg`, `user-after-idle.jpg`, and `user-after-running.jpg`.
 - Computer Use also executed Timer Start and Manual Add from both the normal and Details layouts before and after the motion fix using six isolated QA bundle identities under `.qa.noindex/notch-motion-20260815-161751/`. Actual Core Graphics window bounds exposed the rounding defect: the old expanded timer was `x=485, width=500, center=735.0` and the old collapsed Manual notch was `x=646, width=177, center=734.5`, while the physical notch center is `735.5`. The fixed expanded timer was `x=485, width=501, center=735.5`; the fixed collapsed Manual notch was `x=647, width=177, center=735.5`; all four observed terminal bounds remained at top-origin `y=0`.
 - Computer Use reproduced the duration-dependent Manual defect under `.qa.noindex/manual-duration-feedback-20260815-173639/` by opening the duration popover, changing `30` to `45 min`, and clicking Add while the popover was still open. In the final isolated bundle, the popover disappeared first, the disabled button exposed `Added` with a checkmark, and the notch explicitly collapsed after the full label morph plus one-second hold while the cursor remained over the former button position and a QA interaction lease still pinned normal hover behavior. Exactly one `2700 s` fixture record was added, the fixture stayed without ActiveWork, and the outgoing subtree did not reflow during shrink.
-- The 0.11.39 install occurred only after stopping the old process and snapshotting production JSON plus the complete preferences domain. Staging/install binaries match exactly, strict ad-hoc signature verification passes, and both production files remained byte-for-byte unchanged. The new build remains stopped until the user launches it.
+- Computer Use operated the real Activities UI against two unique `.qa.` bundles and cloned current data under `.qa.noindex/archived-delete-20260819-001006/`. The final fixed bundle opened the parent-owned `Delete …?` alert for the archived Unicode/zero-record Activity, confirmed Delete, and persisted a fixture with exactly that one Activity removed: Tasks `4 → 3`, records `50 → 50`, child Items `0 → 0`. Production JSON and the complete production defaults domain remained unchanged. Screenshots before the click, at the alert, and after deletion are stored with that QA evidence.
+- The 0.11.40 install occurred only after stopping every Work Island process and snapshotting production JSON plus the complete preferences domain. Staging/install binaries match exactly, strict ad-hoc signature verification passes, and both production files remained byte-for-byte unchanged. The new build remains stopped until the user launches it.
 - No source file was added, moved, or removed. Direct Release and the unsigned universal Store archive both compile the same existing source membership.
 - LaunchServices and Spotlight were checked after cleanup and expose only `/Applications/Work Island.app`; staging, archive, derived, and preserved bundles remain confined to `.noindex` paths.
 - Treat this as a baseline only; rerun the relevant checks after source changes.
@@ -270,7 +270,8 @@ These are not confirmed defects. They require the user's physical interaction an
 13. Let both Timer and Pomodoro reach zero and confirm the existing completion row appears to ring silently in short bursts while the Done button stays still. With Reduce Motion enabled in macOS, confirm the ringing stops.
 14. Physically confirm the expanded-notch Glass still feels responsive. Confirm fixed Blur `8` keeps the intended translucency, selected Activities remain high-saturation blue-indigo, Start/Add are vivid green, Pause is vivid orange, Resume is visually the exact same green as Start, Finish is vivid indigo, Discard is vivid red, and the closed notch stays pure black. Start, Finish, Pause, Resume, and Discard must all remain clearly readable in their idle/running/paused layouts, both with and without a selected Item; Classic labels must remain unchanged. Press Start once and confirm the Activity label stays physically still rather than dropping by 1–2 pixels.
 15. Confirm Total/Status, New Activity, the History header, and General begin at the same top height. In Activities, compare a list that cannot scroll with one that can: card width must stay unchanged, the vertical scrollbar must keep the same right edge, and native drag-reordering must still feel normal.
-16. Confirm the Window keeps a restrained split: the background, cards, charts, lists, fields, status, chips, and repeated row controls remain Classic, while Graph Week/Month, Distribution Day/Week/Month, their round chevrons, and Routine frequency/Dates-Pattern/ordinal selections use responsive official Glass. Confirm shared one-off primary/secondary actions and the first notch-introduction banner also use system Glass, while Settings segments and History Start/End stay Classic. Also confirm period controls do not flicker during timed Dashboard refreshes and Distribution keeps each Activity close to its percentage/duration.
+16. Confirm the Window keeps a restrained split: the background, cards, charts, lists, fields, status, chips, and repeated row controls remain Classic, while Graph Week/Month, Distribution Day/Week/Month, Routine frequency/Dates-Pattern/ordinal selections, and Settings Notch Style/Open Notch/Alert/Manual Set As use responsive official Glass. Confirm the Graph/Distribution chevrons now look and behave like one native back/forward navigation control, with the right arrow disabled at the current period. Shared one-off primary/secondary actions and the first notch-introduction banner should also use system Glass, while History Start/End stays Classic. Also confirm period controls do not flicker during timed Dashboard refreshes and Distribution keeps each Activity close to its percentage/duration.
+17. When ready to permanently remove the currently archived Activity, confirm its trash button reliably opens the delete alert even at the bottom of the Activities List, then confirm Delete removes it. The automated proof used only an isolated clone; the real archived Activity remains untouched until the user chooses this action.
 
 ## Release state and boundaries
 
@@ -284,7 +285,7 @@ App Store/TestFlight:
 
 - App Store Connect app record exists for Apple ID `6797406491` with permanent bundle ID `com.shikazeriku.workisland`.
 - Version 1.0.0 build 1 was uploaded and processed. Last observed TestFlight state was `Ready to Submit`; it was not assigned to testers, submitted to App Review, or released.
-- Local source is now build 75; never reuse upload build number 1.
+- Local source is now build 76; never reuse upload build number 1.
 - The user chose free distribution and excluded all 27 EU member states. Do not change legal/trader/storefront choices without asking.
 - Support and Privacy pages were published, and App Privacy was set to `Data Not Collected`. Verify live URLs and App Store Connect state before relying on this.
 - Existing screenshots predate the Activities rename and the move of Manual out of Dashboard; regenerate them before App Review.

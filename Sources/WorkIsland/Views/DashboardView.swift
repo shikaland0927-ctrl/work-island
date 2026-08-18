@@ -40,8 +40,7 @@ struct DashboardAnalyticsLayout {
     static let graphPickerWidth: CGFloat = 180
     static let distributionPickerWidth: CGFloat = 250
     static let periodControlSpacing: CGFloat = 14
-    static let navigationWidth: CGFloat = 44
-    static let navigationButtonSpacing: CGFloat = 4
+    static let navigationWidth: CGFloat = 64
     static let distributionLegendActivityMaximumWidth: CGFloat = 180
     static let distributionLegendColumnSpacing: CGFloat = 16
 
@@ -933,26 +932,18 @@ private struct DashboardPeriodNavigation: View {
     @Binding var periodOffset: Int
 
     var body: some View {
-        HStack(spacing: DashboardAnalyticsLayout.navigationButtonSpacing) {
+        ControlGroup {
             previousButton
-                .buttonStyle(.borderless)
-
-            if periodOffset < 0 {
-                nextButton
-                    .buttonStyle(.borderless)
-            } else {
-                Color.clear
-                    .frame(
-                        width: WorkControlGlassStyle.navigationButtonDiameter,
-                        height: WorkControlGlassStyle.navigationButtonDiameter
-                    )
-                    .accessibilityHidden(true)
-            }
+            nextButton
         }
+        .controlGroupStyle(.navigation)
+        .fixedSize()
         .frame(
             width: DashboardAnalyticsLayout.navigationWidth,
             alignment: .leading
         )
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Period navigation")
     }
 
     private var previousButton: some View {
@@ -960,11 +951,6 @@ private struct DashboardPeriodNavigation: View {
             periodOffset -= 1
         } label: {
             Image(systemName: "chevron.left")
-                .frame(
-                    width: WorkControlGlassStyle.navigationButtonDiameter,
-                    height: WorkControlGlassStyle.navigationButtonDiameter
-                )
-                .workInteractiveGlass(in: Circle())
         }
         .accessibilityLabel("Previous period")
         .help("Previous")
@@ -975,16 +961,11 @@ private struct DashboardPeriodNavigation: View {
             periodOffset += 1
         } label: {
             Image(systemName: "chevron.right")
-                .frame(
-                    width: WorkControlGlassStyle.navigationButtonDiameter,
-                    height: WorkControlGlassStyle.navigationButtonDiameter
-                )
-                .workInteractiveGlass(in: Circle())
         }
+        .disabled(periodOffset >= 0)
         .accessibilityLabel("Next period")
         .help("Next")
     }
-
 }
 
 private struct DashboardPeriodControls: View {

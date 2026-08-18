@@ -27,6 +27,7 @@ struct TasksView: View {
     @EnvironmentObject private var store: WorkTimerStore
     @State private var newTaskName = ""
     @State private var itemEditor: ActivityItemEditorRequest?
+    @State private var activityPendingDeletion: ArchivedActivityDeletionRequest?
 
     var body: some View {
         List {
@@ -122,6 +123,16 @@ struct TasksView: View {
             ActivityItemEditorSheet(request: request)
                 .environmentObject(store)
         }
+        .alert(item: $activityPendingDeletion) { request in
+            Alert(
+                title: Text(request.title),
+                message: Text(request.message),
+                primaryButton: .destructive(Text("Delete")) {
+                    store.deleteTask(id: request.activityID)
+                },
+                secondaryButton: .cancel()
+            )
+        }
     }
 
     private var newActivityCard: some View {
@@ -161,7 +172,12 @@ struct TasksView: View {
             }
 
             ForEach(store.archivedTasks) { task in
-                ArchivedTaskRow(task: task)
+                ArchivedTaskRow(task: task) {
+                    activityPendingDeletion = ArchivedActivityDeletionRequest(
+                        activity: task,
+                        recordCount: store.sessionCount(forTaskID: task.id)
+                    )
+                }
 
                 if task.id != store.archivedTasks.last?.id {
                     Divider()
@@ -181,6 +197,33 @@ struct TasksView: View {
             return
         }
         newTaskName = ""
+    }
+}
+
+struct ArchivedActivityDeletionRequest: Identifiable, Equatable {
+    let activityID: UUID
+    let activityName: String
+    let recordCount: Int
+
+    var id: UUID {
+        activityID
+    }
+
+    var title: String {
+        "Delete \(activityName)?"
+    }
+
+    var message: String {
+        guard recordCount > 0 else {
+            return "This permanently deletes the activity and its tasks and routines."
+        }
+        return "This permanently deletes the activity and its \(recordCount) work \(recordCount == 1 ? "record" : "records")."
+    }
+
+    init(activity: WorkTask, recordCount: Int) {
+        activityID = activity.id
+        activityName = activity.name
+        self.recordCount = recordCount
     }
 }
 
@@ -1010,7 +1053,7 @@ private struct ScheduleChip: View {
 private struct ArchivedTaskRow: View {
     @EnvironmentObject private var store: WorkTimerStore
     let task: WorkTask
-    @State private var isConfirmingDelete = false
+    let requestDelete: () -> Void
 
     var body: some View {
         HStack(spacing: 14) {
@@ -1042,9 +1085,7 @@ private struct ArchivedTaskRow: View {
             .hoverHelp("Restore")
 
             if store.canDeleteTask(id: task.id) {
-                Button(role: .destructive) {
-                    isConfirmingDelete = true
-                } label: {
+                Button(role: .destructive, action: requestDelete) {
                     Image(systemName: "trash")
                         .font(.title3)
                 }
@@ -1054,17 +1095,6 @@ private struct ArchivedTaskRow: View {
             }
         }
         .padding(.vertical, 5)
-        .alert(
-            "Delete \(task.name)?",
-            isPresented: $isConfirmingDelete
-        ) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                store.deleteTask(id: task.id)
-            }
-        } message: {
-            Text(deleteMessage)
-        }
     }
 
     private var archiveSummary: String {
@@ -1075,13 +1105,6 @@ private struct ArchivedTaskRow: View {
         return "\(time) • \(count) \(count == 1 ? "record" : "records") • \(itemText)"
     }
 
-    private var deleteMessage: String {
-        let count = store.sessionCount(forTaskID: task.id)
-        guard count > 0 else {
-            return "This permanently deletes the activity and its tasks and routines."
-        }
-        return "This permanently deletes the activity and its \(count) work \(count == 1 ? "record" : "records")."
-    }
 }
 
 private struct EmptyTasksRow: View {

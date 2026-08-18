@@ -135,6 +135,31 @@ final class TaskLibraryTests: XCTestCase {
         XCTAssertEqual(restoredStore.sessionCount(forTaskID: keptTask.id), 1)
     }
 
+    func testDeletingArchivedUnicodeActivityWithoutRecordsPersists() throws {
+        let storageURL = temporaryStorageURL()
+        let store = WorkTimerStore(storageURL: storageURL)
+        let activity = try XCTUnwrap(store.addTask(named: "cvっc"))
+        store.archiveTask(id: activity.id)
+
+        let request = ArchivedActivityDeletionRequest(
+            activity: activity,
+            recordCount: store.sessionCount(forTaskID: activity.id)
+        )
+
+        XCTAssertEqual(request.activityID, activity.id)
+        XCTAssertEqual(request.title, "Delete cvっc?")
+        XCTAssertEqual(
+            request.message,
+            "This permanently deletes the activity and its tasks and routines."
+        )
+        XCTAssertTrue(store.canDeleteTask(id: request.activityID))
+
+        store.deleteTask(id: request.activityID)
+
+        XCTAssertNil(store.task(id: activity.id))
+        XCTAssertNil(WorkTimerStore(storageURL: storageURL).task(id: activity.id))
+    }
+
     func testTotalsAreSeparatedByTask() throws {
         let store = WorkTimerStore(storageURL: temporaryStorageURL())
         let firstStart = Date(timeIntervalSince1970: 1_700_500_000)

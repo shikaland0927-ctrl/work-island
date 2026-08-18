@@ -357,18 +357,18 @@ Prevention:
 
 ### Native glass must stay on deliberate, stable surfaces
 
-Applying native Liquid Glass to the full Window background, every repeated child control, and surfaces rebuilt inside periodic `TimelineView` closures made the interface feel heavy. On 2026-08-15 the user therefore chose a notch-only boundary. On 2026-08-18 the user explicitly reopened the decision and approved a narrower Window experiment: content surfaces remain Classic, while Dashboard periods/arrows, Routine schedule selections, shared opt-in action buttons, and the one-time notch-introduction banner use official native Glass. This supersedes the absolute notch-only ban, not the evidence against broad or frequently rebuilt Glass.
+Applying native Liquid Glass to the full Window background, every repeated child control, and surfaces rebuilt inside periodic `TimelineView` closures made the interface feel heavy. On 2026-08-15 the user therefore chose a notch-only boundary. On 2026-08-18 the user explicitly reopened the decision and approved a narrower Window experiment, then on 2026-08-19 explicitly added Settings segmented choices and a native Dashboard navigation group. Content surfaces remain Classic, while Dashboard periods, Routine schedule selections, Settings segmented choices, shared opt-in action buttons, and the one-time notch-introduction banner use official native Glass. This supersedes the absolute notch-only ban, not the evidence against broad or frequently rebuilt Glass.
 
 Prevention:
 
-- Keep native `glassEffect` out of Window backgrounds, cards, sidebar surfaces, lists, fields, status, charts, chips, and repeated row controls. Add a Window Glass surface only through an explicit opt-in shared style; Settings and History segmented choices remain Classic.
+- Keep native `glassEffect` out of Window backgrounds, cards, sidebar surfaces, lists, fields, status, charts, chips, and repeated row controls. Add a Window Glass surface only through an explicit opt-in shared style; Settings segmented choices now opt in explicitly, while History Start/End remains Classic.
 - Keep the native glass surface outside periodic `TimelineView` content so one-second analytics/notch updates do not recreate it.
 - Render repeated notch chips and secondary buttons with lightweight tinted fills, borders, and one restrained shadow.
 - Do not reuse a Glass action surface's semantic tint as its label color. Start, Add, Finish, Pause, Resume, and Discard use one high-contrast white label treatment with bold weight and a restrained dark shadow. Keep this treatment Glass-only so Classic action colors do not drift. Give actions separate high-saturation Glass surfaces: Start/Resume green, Pause orange, Finish indigo, and Discard red. Resume must alias Start's RGB and tint opacity directly rather than duplicate literals; unit-test exact equality so later tuning cannot make them diverge.
 - Keep the expanded notch's native glass shell stable and avoid duplicate glow shadows unless profiling shows they are justified.
 - SwiftUI's public native `Glass` surface exposes regular/clear/identity, tint, and interactivity—not arbitrary CSS-style Frost, Blur, Refraction, or Bezel Depth values. Public Core Animation/Core Image filters do not automatically gain cross-window backdrop access, so they cannot be assumed to supply a missing custom-displacement stage. Keep unsupported controls out of Settings instead of assigning them misleading decorative effects.
 - Refraction is no longer a product control. Keep the neutral `1.00` compatibility value separate from fixed Blur `8`, and never render an optical layer merely because an old preference key remains. The failed fixed backdrop-lens experiment was removed after the user confirmed no visible change.
-- Graph and Distribution retain their established chevron symbols and fixed navigation geometry, but on macOS 26+ those symbols now sit on round interactive Glass; older macOS retains the borderless fallback. Do not change identity symbols merely to obtain Glass.
+- Graph and Distribution retain their established chevron symbols, but the pair belongs in SwiftUI's native `.navigation` `ControlGroup` rather than two manually styled circles. Reserve the measured 64-point slot and keep the future arrow present but disabled at the current period. Do not change identity symbols merely to obtain Glass.
 - Verify both interaction feel and idle/active CPU with an isolated bundle before installing. A successful compile or geometry test does not prove compositor responsiveness.
 - Transparency alone does not create a rich glass look. Native glass derives much of its luminosity and color from the content behind it, so a small notch over a dark or uniform menu-bar background cannot match a high-key reference render automatically.
 - Compare regular and clear glass over the same realistic fixture before choosing. Clear can expose more background but also wash out dense white labels; prefer regular plus restrained local reflection when legibility wins.
@@ -380,7 +380,8 @@ A shared moving-selection control and per-Activity notch tint were initially app
 Prevention:
 
 - `appearanceStyle` may affect `TimerIslandView`; ordinary Window components must not read it for rendering. Window Glass is a fixed per-control product decision, not another consequence of Notch Style.
-- Keep matched-geometry spring motion independent from surface material. Dashboard and Routine choices explicitly opt into Glass; Settings, History, and all other choices stay on the neutral Classic surface.
+- Keep matched-geometry spring motion independent from surface material. Dashboard, Routine, and Settings choices explicitly opt into Glass; History and all other choices stay on the neutral Classic surface.
+
 - Any Liquid-only label contrast, tint, border, shadow, or transparency rule must include an explicit appearance condition; a semantic color parameter alone is not sufficient.
 - When no source history is available, preserve a known prior app bundle, give it an isolated identity/data/defaults domain, and compare the same fixture side by side before accepting Classic compatibility.
 - Treat “Classic unchanged” as its own acceptance requirement, not as an inference from Liquid looking correct.
@@ -388,6 +389,17 @@ Prevention:
 - Removing an explicit stroke does not remove the optical perimeter introduced by native `glassEffect`. When a Liquid content card must keep its face but lose that rim, use the standard Material/tint/shadow face without native glass on that card, and compare it against the preserved Classic bundle.
 - When the user asks one page to match sibling pages, visual parity means using the exact same shared modifier call. Do not preserve page-specific border/native-glass flags merely because they can be tuned to look similar; remove the divergent path.
 - Increasing tint opacity alone can make colored glass look muddier because white overlays and neutral material remain mixed in. For a vivid result, evaluate hue separation, saturation, white overlay, highlight, and border tint together while keeping Classic colors on their separate branch.
+
+### Confirmation presenters must outlive mutable List rows
+
+An archived Activity's destructive alert was owned by `@State` inside its `ArchivedTaskRow`. At the bottom of the native Activities List, scrolling and row reconstruction could make the trash interaction appear unreliable even though `WorkTimerStore.deleteTask` itself correctly deleted the same cloned Activity. A modal presenter tied to a mutable row is the wrong lifetime boundary.
+
+Prevention:
+
+- Let each archived row emit only a deletion request. The stable `TasksView` owns the pending request, alert, and captured Activity ID/name/record count.
+- Snapshot the user-facing deletion context before presentation; do not recover the target from a row that may already have moved or disappeared.
+- Reproduce destructive UI issues with a uniquely identified QA bundle, a byte-for-byte cloned fixture, and an isolated defaults suite. Confirm both the exact fixture delta and full production JSON/defaults invariance afterward.
+- Keep a data-layer regression for the reported shape—in this case a Unicode Activity with zero records—while recognizing that a passing store test does not prove the SwiftUI presenter lifetime.
 
 ## P1 — Hover, notch interaction, and lifecycle
 

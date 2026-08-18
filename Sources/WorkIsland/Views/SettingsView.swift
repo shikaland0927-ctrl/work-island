@@ -162,7 +162,8 @@ private struct GeneralSettingsView: View {
                     accessibilityName: "Notch Style",
                     selection: $preferences.appearance,
                     options: WorkIslandAppearance.allCases,
-                    title: { $0.title }
+                    title: { $0.title },
+                    surfaceStyle: .glass
                 )
                 .frame(
                     width: SettingsControlLayout.standardTrailingWidth,
@@ -226,7 +227,8 @@ private struct GeneralSettingsView: View {
                     accessibilityName: "Open Notch",
                     selection: $preferences.notchOpenMode,
                     options: NotchOpenMode.allCases,
-                    title: { $0.title }
+                    title: { $0.title },
+                    surfaceStyle: .glass
                 )
                 .frame(
                     width: SettingsControlLayout.notchOpenWidth,
@@ -289,7 +291,8 @@ private struct TimingSettingsView: View {
                     accessibilityName: "Alert",
                     selection: $preferences.completionRevealMode,
                     options: CompletionRevealMode.allCases,
-                    title: { $0.title }
+                    title: { $0.title },
+                    surfaceStyle: .glass
                 )
                 .frame(
                     width: SettingsControlLayout.standardTrailingWidth,
@@ -331,7 +334,8 @@ private struct TimingSettingsView: View {
                     accessibilityName: "Manual Set As",
                     selection: $preferences.manualTimeAnchor,
                     options: SessionTimeAnchor.allCases,
-                    title: { $0.rawValue }
+                    title: { $0.rawValue },
+                    surfaceStyle: .glass
                 )
                 .frame(
                     width: SettingsControlLayout.standardTrailingWidth,
