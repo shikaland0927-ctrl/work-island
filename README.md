@@ -47,7 +47,7 @@ Before changing this project, read workspace `../AGENTS.md`, project `AGENTS.md`
 - Keep every opening and closing frame attached to the screen top and symmetric around the physical notch center, without a scale-up floating effect
 - Choose Hours and Minutes from the same vertical picker in notch Timer and Manual, with one shared Step in Settings > Timing; History Edit keeps compact Hours/Minutes menus with its adjacent Step control
 - Configure completion Alert, compact Progress, Manual Start/End anchoring, shared Timer/Manual Step, and equally sized, right-aligned Pomodoro Focus/Break/Long/Sessions together in Settings > Timing
-- Keep the main Window in the original Classic style while its indigo-tinted segmented selections move with a smooth spring; Glass is limited to the expanded notch, with highly saturated indigo selection, vivid readable actions, and a reflected translucent shell
+- Keep Window content and cards Classic while selected Dashboard/Routine controls, period arrows, and opt-in action buttons use official native Glass on macOS 26+ with Classic fallbacks; the expanded Glass notch keeps its saturated selection, vivid readable actions, and reflected translucent shell
 - Use fixed Glass optics—Blur 8, neutral Refraction `1.00`, Frost 6, and Bezel Depth 0—without exposing ineffective optical controls in Settings
 - Choose when a Dashboard day starts, from 00:00 through 23:00
 - Turn Launch at Login on or off in Settings
@@ -61,7 +61,7 @@ Before changing this project, read workspace `../AGENTS.md`, project `AGENTS.md`
 
 The current development application is Work Island.app inside the dist.noindex folder.
 
-The current source targets local-development version 0.11.38 build 90. The installed `/Applications/Work Island.app` must be compared with staging after each rebuild; rebuilding `dist.noindex` alone does not update the installed copy.
+The current source targets local-development version 0.11.39 build 91. The installed `/Applications/Work Island.app` must be compared with staging after each rebuild; rebuilding `dist.noindex` alone does not update the installed copy.
 
 The previously documented notarized 0.5.3 friend-beta ZIP is no longer present at its recorded Downloads path. The replaced ad-hoc 0.5.3 Applications bundle is preserved under `dist.previous.noindex`, but it is not a substitute for the notarized ZIP. Build, Developer ID-sign, notarize, staple, and verify a fresh artifact before sharing another direct beta.
 
@@ -71,7 +71,7 @@ If macOS shows a first-launch warning, right-click the app and choose Open.
 
 For normal Swift package development and tests, open Package.swift and run the WorkIsland scheme.
 
-For TestFlight or the Mac App Store, open WorkIsland.xcodeproj and use the Work Island scheme. The Store target uses the permanent bundle identifier `com.shikazeriku.workisland`, version 1.0.0 build 74, App Sandbox, and universal arm64/x86_64 release builds. The project supports macOS 13 and later.
+For TestFlight or the Mac App Store, open WorkIsland.xcodeproj and use the Work Island scheme. The Store target uses the permanent bundle identifier `com.shikazeriku.workisland`, version 1.0.0 build 75, App Sandbox, and universal arm64/x86_64 release builds. The project supports macOS 13 and later.
 
 ## Rebuild the app
 

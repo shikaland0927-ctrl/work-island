@@ -228,7 +228,7 @@ private struct HistorySessionCard: View {
                     resetEditor(using: session)
                     isEditing = false
                 }
-                .workSecondaryButtonStyle()
+                .workGlassSecondaryButtonStyle()
 
                 Button("Save") {
                     saveEdits()

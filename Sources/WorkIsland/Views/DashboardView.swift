@@ -41,6 +41,7 @@ struct DashboardAnalyticsLayout {
     static let distributionPickerWidth: CGFloat = 250
     static let periodControlSpacing: CGFloat = 14
     static let navigationWidth: CGFloat = 44
+    static let navigationButtonSpacing: CGFloat = 4
     static let distributionLegendActivityMaximumWidth: CGFloat = 180
     static let distributionLegendColumnSpacing: CGFloat = 16
 
@@ -477,114 +478,128 @@ private struct DashboardTrendCard: View {
     @State private var periodOffset = 0
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 15)) { context in
-            let currentDay = WorkdayCalendar.day(
-                containing: context.date,
-                startHour: preferences.dayStartHour
-            )
-            let periodDate = range.shiftedDate(
-                from: currentDay,
-                by: periodOffset
-            )
-            let calendarRange = range.calendarRange(containing: periodDate)
-            let totalPoints = store.dailyTotals(
-                last: calendarRange.dayCount,
-                through: calendarRange.endDate,
-                at: context.date,
-                dayStartHour: preferences.dayStartHour
-            )
-            let taskPoints = store.dailyTaskTotals(
-                last: calendarRange.dayCount,
-                through: calendarRange.endDate,
-                at: context.date,
-                dayStartHour: preferences.dayStartHour
-            )
-            let totals = store.taskTotals(
-                last: calendarRange.dayCount,
-                through: calendarRange.endDate,
-                at: context.date,
-                dayStartHour: preferences.dayStartHour
-            )
+        ZStack(alignment: .topTrailing) {
+            TimelineView(.periodic(from: .now, by: 15)) { context in
+                let currentDay = WorkdayCalendar.day(
+                    containing: context.date,
+                    startHour: preferences.dayStartHour
+                )
+                let periodDate = range.shiftedDate(
+                    from: currentDay,
+                    by: periodOffset
+                )
+                let calendarRange = range.calendarRange(containing: periodDate)
+                let totalPoints = store.dailyTotals(
+                    last: calendarRange.dayCount,
+                    through: calendarRange.endDate,
+                    at: context.date,
+                    dayStartHour: preferences.dayStartHour
+                )
+                let taskPoints = store.dailyTaskTotals(
+                    last: calendarRange.dayCount,
+                    through: calendarRange.endDate,
+                    at: context.date,
+                    dayStartHour: preferences.dayStartHour
+                )
+                let totals = store.taskTotals(
+                    last: calendarRange.dayCount,
+                    through: calendarRange.endDate,
+                    at: context.date,
+                    dayStartHour: preferences.dayStartHour
+                )
 
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top, spacing: 14) {
-                    analyticsHeader(
-                        title: "Graph",
-                        subtitle: range.displayLabel(containing: periodDate),
-                        trailing: WorkFormatting.readable(
-                            totalPoints.reduce(0) { $0 + $1.duration }
-                        )
-                    )
-
-                    DashboardPeriodControls(
-                        accessibilityName: "Graph range",
-                        options: DashboardPeriod.graphCases,
-                        pickerWidth: DashboardAnalyticsLayout.graphPickerWidth,
-                        range: $range,
-                        periodOffset: $periodOffset
-                    )
-                }
-
-                if taskPoints.isEmpty {
-                    AnalyticsEmptyState(
-                        systemImage: "chart.bar.xaxis",
-                        message: "No recorded work in this period."
-                    )
-                } else if let firstDay = totalPoints.first?.day,
-                          let lastDay = totalPoints.last?.day,
-                          let rangeEnd = Calendar.current.date(
-                            byAdding: .day,
-                            value: 1,
-                            to: lastDay
-                          ) {
-                    Chart(taskPoints) { point in
-                        BarMark(
-                            x: .value("Day", point.day, unit: .day),
-                            y: .value("Duration", point.duration),
-                            stacking: .standard
-                        )
-                        .foregroundStyle(
-                            TaskColorPalette.color(
-                                for: point.taskID,
-                                name: point.taskName
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(alignment: .top, spacing: 14) {
+                        analyticsHeader(
+                            title: "Graph",
+                            subtitle: range.displayLabel(containing: periodDate),
+                            trailing: WorkFormatting.readable(
+                                totalPoints.reduce(0) { $0 + $1.duration }
                             )
                         )
-                        .cornerRadius(3)
-                        .accessibilityLabel("\(shortDay(point.day)), \(point.taskName)")
-                        .accessibilityValue(WorkFormatting.readable(point.duration))
+
+                        Color.clear
+                            .frame(
+                                width: DashboardAnalyticsLayout
+                                    .trailingPeriodControlsWidth,
+                                height: 30
+                            )
                     }
-                    .chartXScale(domain: firstDay...rangeEnd)
-                    .chartXAxis {
-                        AxisMarks(
-                            values: .stride(
-                                by: .day,
-                                count: range.graphAxisStride
+
+                    if taskPoints.isEmpty {
+                        AnalyticsEmptyState(
+                            systemImage: "chart.bar.xaxis",
+                            message: "No recorded work in this period."
+                        )
+                    } else if let firstDay = totalPoints.first?.day,
+                              let lastDay = totalPoints.last?.day,
+                              let rangeEnd = Calendar.current.date(
+                                byAdding: .day,
+                                value: 1,
+                                to: lastDay
+                              ) {
+                        Chart(taskPoints) { point in
+                            BarMark(
+                                x: .value("Day", point.day, unit: .day),
+                                y: .value("Duration", point.duration),
+                                stacking: .standard
                             )
-                        ) { value in
-                            AxisTick()
-                            AxisValueLabel {
-                                if let date = value.as(Date.self) {
-                                    Text(axisDay(date))
+                            .foregroundStyle(
+                                TaskColorPalette.color(
+                                    for: point.taskID,
+                                    name: point.taskName
+                                )
+                            )
+                            .cornerRadius(3)
+                            .accessibilityLabel(
+                                "\(shortDay(point.day)), \(point.taskName)"
+                            )
+                            .accessibilityValue(
+                                WorkFormatting.readable(point.duration)
+                            )
+                        }
+                        .chartXScale(domain: firstDay...rangeEnd)
+                        .chartXAxis {
+                            AxisMarks(
+                                values: .stride(
+                                    by: .day,
+                                    count: range.graphAxisStride
+                                )
+                            ) { value in
+                                AxisTick()
+                                AxisValueLabel {
+                                    if let date = value.as(Date.self) {
+                                        Text(axisDay(date))
+                                    }
                                 }
                             }
                         }
-                    }
-                    .chartYAxis {
-                        AxisMarks(position: .leading) { value in
-                            AxisGridLine()
-                                .foregroundStyle(Color.primary.opacity(0.07))
-                            AxisValueLabel {
-                                if let duration = value.as(Double.self) {
-                                    Text(axisDuration(duration))
+                        .chartYAxis {
+                            AxisMarks(position: .leading) { value in
+                                AxisGridLine()
+                                    .foregroundStyle(Color.primary.opacity(0.07))
+                                AxisValueLabel {
+                                    if let duration = value.as(Double.self) {
+                                        Text(axisDuration(duration))
+                                    }
                                 }
                             }
                         }
-                    }
-                    .frame(height: 280)
+                        .frame(height: 280)
 
-                    DashboardTaskLegend(totals: totals)
+                        DashboardTaskLegend(totals: totals)
+                    }
                 }
+                .padding(22)
             }
+
+            DashboardPeriodControls(
+                accessibilityName: "Graph range",
+                options: DashboardPeriod.graphCases,
+                pickerWidth: DashboardAnalyticsLayout.graphPickerWidth,
+                range: $range,
+                periodOffset: $periodOffset
+            )
             .padding(22)
         }
         .workCard()
@@ -634,76 +649,86 @@ private struct DashboardDistributionCard: View {
     @State private var periodOffset = 0
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 15)) { context in
-            let currentDay = WorkdayCalendar.day(
-                containing: context.date,
-                startHour: preferences.dayStartHour
-            )
-            let periodDate = range.shiftedDate(
-                from: currentDay,
-                by: periodOffset
-            )
-            let calendarRange = range.calendarRange(containing: periodDate)
-            let totals = store.taskTotals(
-                last: calendarRange.dayCount,
-                through: calendarRange.endDate,
-                at: context.date,
-                dayStartHour: preferences.dayStartHour
-            )
-            let totalDuration = totals.reduce(0) { $0 + $1.duration }
+        ZStack(alignment: .topTrailing) {
+            TimelineView(.periodic(from: .now, by: 15)) { context in
+                let currentDay = WorkdayCalendar.day(
+                    containing: context.date,
+                    startHour: preferences.dayStartHour
+                )
+                let periodDate = range.shiftedDate(
+                    from: currentDay,
+                    by: periodOffset
+                )
+                let calendarRange = range.calendarRange(containing: periodDate)
+                let totals = store.taskTotals(
+                    last: calendarRange.dayCount,
+                    through: calendarRange.endDate,
+                    at: context.date,
+                    dayStartHour: preferences.dayStartHour
+                )
+                let totalDuration = totals.reduce(0) { $0 + $1.duration }
 
-            VStack(alignment: .leading, spacing: 18) {
-                HStack(alignment: .top, spacing: 14) {
-                    analyticsHeader(
-                        title: "Distribution",
-                        subtitle: range.displayLabel(containing: periodDate),
-                        trailing: WorkFormatting.readable(totalDuration)
-                    )
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(alignment: .top, spacing: 14) {
+                        analyticsHeader(
+                            title: "Distribution",
+                            subtitle: range.displayLabel(containing: periodDate),
+                            trailing: WorkFormatting.readable(totalDuration)
+                        )
 
-                    DashboardPeriodControls(
-                        accessibilityName: "Distribution range",
-                        options: DashboardPeriod.allCases,
-                        pickerWidth: DashboardAnalyticsLayout.distributionPickerWidth,
-                        range: $range,
-                        periodOffset: $periodOffset
-                    )
-                }
-
-                if totals.isEmpty {
-                    AnalyticsEmptyState(
-                        systemImage: "chart.pie",
-                        message: "No activity distribution is available for this period."
-                    )
-                } else {
-                    ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 34) {
-                            DashboardDonutChart(
-                                totals: totals,
-                                totalDuration: totalDuration
+                        Color.clear
+                            .frame(
+                                width: DashboardAnalyticsLayout
+                                    .trailingPeriodControlsWidth,
+                                height: 30
                             )
-                            .frame(width: 250, height: 250)
+                    }
 
-                            DistributionLegend(
-                                totals: totals,
-                                totalDuration: totalDuration
-                            )
-                        }
+                    if totals.isEmpty {
+                        AnalyticsEmptyState(
+                            systemImage: "chart.pie",
+                            message: "No activity distribution is available for this period."
+                        )
+                    } else {
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 34) {
+                                DashboardDonutChart(
+                                    totals: totals,
+                                    totalDuration: totalDuration
+                                )
+                                .frame(width: 250, height: 250)
 
-                        VStack(spacing: 24) {
-                            DashboardDonutChart(
-                                totals: totals,
-                                totalDuration: totalDuration
-                            )
-                            .frame(width: 230, height: 230)
+                                DistributionLegend(
+                                    totals: totals,
+                                    totalDuration: totalDuration
+                                )
+                            }
 
-                            DistributionLegend(
-                                totals: totals,
-                                totalDuration: totalDuration
-                            )
+                            VStack(spacing: 24) {
+                                DashboardDonutChart(
+                                    totals: totals,
+                                    totalDuration: totalDuration
+                                )
+                                .frame(width: 230, height: 230)
+
+                                DistributionLegend(
+                                    totals: totals,
+                                    totalDuration: totalDuration
+                                )
+                            }
                         }
                     }
                 }
+                .padding(22)
             }
+
+            DashboardPeriodControls(
+                accessibilityName: "Distribution range",
+                options: DashboardPeriod.allCases,
+                pickerWidth: DashboardAnalyticsLayout.distributionPickerWidth,
+                range: $range,
+                periodOffset: $periodOffset
+            )
             .padding(22)
         }
         .workCard()
@@ -908,7 +933,7 @@ private struct DashboardPeriodNavigation: View {
     @Binding var periodOffset: Int
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: DashboardAnalyticsLayout.navigationButtonSpacing) {
             previousButton
                 .buttonStyle(.borderless)
 
@@ -917,7 +942,10 @@ private struct DashboardPeriodNavigation: View {
                     .buttonStyle(.borderless)
             } else {
                 Color.clear
-                    .frame(width: 20, height: 20)
+                    .frame(
+                        width: WorkControlGlassStyle.navigationButtonDiameter,
+                        height: WorkControlGlassStyle.navigationButtonDiameter
+                    )
                     .accessibilityHidden(true)
             }
         }
@@ -932,7 +960,11 @@ private struct DashboardPeriodNavigation: View {
             periodOffset -= 1
         } label: {
             Image(systemName: "chevron.left")
-                .frame(width: 20, height: 20)
+                .frame(
+                    width: WorkControlGlassStyle.navigationButtonDiameter,
+                    height: WorkControlGlassStyle.navigationButtonDiameter
+                )
+                .workInteractiveGlass(in: Circle())
         }
         .accessibilityLabel("Previous period")
         .help("Previous")
@@ -943,7 +975,11 @@ private struct DashboardPeriodNavigation: View {
             periodOffset += 1
         } label: {
             Image(systemName: "chevron.right")
-                .frame(width: 20, height: 20)
+                .frame(
+                    width: WorkControlGlassStyle.navigationButtonDiameter,
+                    height: WorkControlGlassStyle.navigationButtonDiameter
+                )
+                .workInteractiveGlass(in: Circle())
         }
         .accessibilityLabel("Next period")
         .help("Next")
@@ -965,7 +1001,8 @@ private struct DashboardPeriodControls: View {
                 selection: $range,
                 options: options,
                 title: { $0.title },
-                height: 30
+                height: 30,
+                surfaceStyle: .glass
             )
             .frame(width: pickerWidth, alignment: .trailing)
 

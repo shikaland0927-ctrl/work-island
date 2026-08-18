@@ -399,7 +399,7 @@ private struct ActivityNameEditorSheet: View {
                 Button("Cancel") {
                     dismiss()
                 }
-                .workSecondaryButtonStyle()
+                .workGlassSecondaryButtonStyle()
 
                 Button("Save", action: save)
                     .workProminentButtonStyle()
@@ -768,6 +768,7 @@ private struct ActivityItemEditorSheet: View {
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
+                .workGlassSecondaryButtonStyle()
 
                 Button("Save") {
                     save()
@@ -838,7 +839,8 @@ private struct RoutineScheduleEditor: View {
                 accessibilityName: "Frequency",
                 selection: $schedule.frequency,
                 options: RoutineFrequency.allCases,
-                title: { $0.title }
+                title: { $0.title },
+                surfaceStyle: .glass
             )
 
             HStack(spacing: 12) {
@@ -901,7 +903,8 @@ private struct RoutineScheduleEditor: View {
                 accessibilityName: "Month",
                 selection: $schedule.monthMode,
                 options: RoutineMonthMode.allCases,
-                title: { $0.title }
+                title: { $0.title },
+                surfaceStyle: .glass
             )
 
             switch schedule.monthMode {
@@ -929,7 +932,8 @@ private struct RoutineScheduleEditor: View {
                     accessibilityName: "Ordinal",
                     selection: $schedule.ordinal,
                     options: RoutineOrdinal.allCases,
-                    title: { $0.title }
+                    title: { $0.title },
+                    surfaceStyle: .glass
                 )
 
                 weekdayPicker(

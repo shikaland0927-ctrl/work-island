@@ -355,32 +355,32 @@ Prevention:
   layout. A test that compares only declared margins and width caps can pass
   while `.contentMargins` is ineffective for the native row subtree.
 
-### Native glass must remain inside the expanded notch
+### Native glass must stay on deliberate, stable surfaces
 
-Applying native Liquid Glass to the full Window background, every repeated child control, and surfaces rebuilt inside periodic `TimelineView` closures made the interface feel heavy. Safari-like period arrows also expanded the visual scope beyond the user's eventual choice. On 2026-08-15 the user fixed the product boundary: Liquid Glass belongs only to the expanded notch; the main Window stays Classic.
+Applying native Liquid Glass to the full Window background, every repeated child control, and surfaces rebuilt inside periodic `TimelineView` closures made the interface feel heavy. On 2026-08-15 the user therefore chose a notch-only boundary. On 2026-08-18 the user explicitly reopened the decision and approved a narrower Window experiment: content surfaces remain Classic, while Dashboard periods/arrows, Routine schedule selections, shared opt-in action buttons, and the one-time notch-introduction banner use official native Glass. This supersedes the absolute notch-only ban, not the evidence against broad or frequently rebuilt Glass.
 
 Prevention:
 
-- Keep native `glassEffect` and Liquid-only Material fallbacks out of every Window background, card, sidebar surface, button, segmented choice, and period arrow. A future Window-glass experiment requires a new explicit product decision.
+- Keep native `glassEffect` out of Window backgrounds, cards, sidebar surfaces, lists, fields, status, charts, chips, and repeated row controls. Add a Window Glass surface only through an explicit opt-in shared style; Settings and History segmented choices remain Classic.
 - Keep the native glass surface outside periodic `TimelineView` content so one-second analytics/notch updates do not recreate it.
 - Render repeated notch chips and secondary buttons with lightweight tinted fills, borders, and one restrained shadow.
 - Do not reuse a Glass action surface's semantic tint as its label color. Start, Add, Finish, Pause, Resume, and Discard use one high-contrast white label treatment with bold weight and a restrained dark shadow. Keep this treatment Glass-only so Classic action colors do not drift. Give actions separate high-saturation Glass surfaces: Start/Resume green, Pause orange, Finish indigo, and Discard red. Resume must alias Start's RGB and tint opacity directly rather than duplicate literals; unit-test exact equality so later tuning cannot make them diverge.
 - Keep the expanded notch's native glass shell stable and avoid duplicate glow shadows unless profiling shows they are justified.
 - SwiftUI's public native `Glass` surface exposes regular/clear/identity, tint, and interactivity—not arbitrary CSS-style Frost, Blur, Refraction, or Bezel Depth values. Public Core Animation/Core Image filters do not automatically gain cross-window backdrop access, so they cannot be assumed to supply a missing custom-displacement stage. Keep unsupported controls out of Settings instead of assigning them misleading decorative effects.
 - Refraction is no longer a product control. Keep the neutral `1.00` compatibility value separate from fixed Blur `8`, and never render an optical layer merely because an old preference key remains. The failed fixed backdrop-lens experiment was removed after the user confirmed no visible change.
-- Graph and Distribution deliberately use the established Classic borderless chevrons in every notch-style mode. Do not retain canceled native `.glass` button code as an inactive appearance branch.
+- Graph and Distribution retain their established chevron symbols and fixed navigation geometry, but on macOS 26+ those symbols now sit on round interactive Glass; older macOS retains the borderless fallback. Do not change identity symbols merely to obtain Glass.
 - Verify both interaction feel and idle/active CPU with an isolated bundle before installing. A successful compile or geometry test does not prove compositor responsiveness.
 - Transparency alone does not create a rich glass look. Native glass derives much of its luminosity and color from the content behind it, so a small notch over a dark or uniform menu-bar background cannot match a high-key reference render automatically.
 - Compare regular and clear glass over the same realistic fixture before choosing. Clear can expose more background but also wash out dense white labels; prefer regular plus restrained local reflection when legibility wins.
 
-### Liquid experiments must not leak into the Window or Classic notch
+### Liquid experiments must not leak beyond their approved surface
 
-A shared moving-selection control and per-Activity notch tint were initially applied to both appearance modes. Later, Liquid materials spread across the Window even though the final accepted scope is the notch only. Motion and material are separate decisions: the Window now intentionally shares a smooth moving selection surface, but its color, fill, border, background, and buttons remain Classic.
+A shared moving-selection control and per-Activity notch tint were initially applied to both appearance modes. Later, Liquid materials spread across the Window before the user had approved that scope. Motion and material remain separate decisions: a moving selection does not imply Glass. The current Window contract therefore uses an explicit `.classic` or `.glass` selection surface at each call site instead of deriving it from Notch Style.
 
 Prevention:
 
-- Branch at the notch boundary, not inside Window components. `appearanceStyle` may affect `TimerIslandView`; ordinary Window components must not read it for rendering.
-- For the intentional smooth Window selection, use a neutral Classic surface plus matched-geometry spring motion. Do not equate “Liquid-like movement” with a glass material or Liquid color treatment.
+- `appearanceStyle` may affect `TimerIslandView`; ordinary Window components must not read it for rendering. Window Glass is a fixed per-control product decision, not another consequence of Notch Style.
+- Keep matched-geometry spring motion independent from surface material. Dashboard and Routine choices explicitly opt into Glass; Settings, History, and all other choices stay on the neutral Classic surface.
 - Any Liquid-only label contrast, tint, border, shadow, or transparency rule must include an explicit appearance condition; a semantic color parameter alone is not sufficient.
 - When no source history is available, preserve a known prior app bundle, give it an isolated identity/data/defaults domain, and compare the same fixture side by side before accepting Classic compatibility.
 - Treat “Classic unchanged” as its own acceptance requirement, not as an inference from Liquid looking correct.

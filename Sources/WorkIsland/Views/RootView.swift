@@ -84,6 +84,18 @@ struct WorkSegmentedPickerStyle {
     static let selectedStrokeOpacity = 0.62
 }
 
+enum WorkSegmentedPickerSurfaceStyle: Equatable {
+    case classic
+    case glass
+}
+
+struct WorkControlGlassStyle {
+    static let selectionTintOpacity = 0.34
+    static let selectionShadowOpacity = 0.14
+    static let navigationButtonDiameter: CGFloat = 20
+    static let bannerTintOpacity = 0.10
+}
+
 struct WorkSegmentedPicker<Option: Hashable>: View {
     @Namespace private var selectionNamespace
     @State private var highlightedSelection: Option?
@@ -94,6 +106,7 @@ struct WorkSegmentedPicker<Option: Hashable>: View {
     let title: (Option) -> String
     var tint: Color = .indigo
     var height: CGFloat = 32
+    var surfaceStyle: WorkSegmentedPickerSurfaceStyle = .classic
 
     var body: some View {
         let visualSelection = highlightedSelection ?? selection
@@ -125,9 +138,10 @@ struct WorkSegmentedPicker<Option: Hashable>: View {
                         .contentShape(Rectangle())
                         .background {
                             if isSelected {
-                                ClassicSegmentSelectionSurface(
+                                WorkSegmentSelectionSurface(
                                     tint: tint,
-                                    cornerRadius: height * 0.18
+                                    cornerRadius: height * 0.18,
+                                    surfaceStyle: surfaceStyle
                                 )
                                 .matchedGeometryEffect(
                                     id: "selection",
@@ -163,16 +177,50 @@ struct WorkSegmentedPicker<Option: Hashable>: View {
     }
 }
 
-private struct ClassicSegmentSelectionSurface: View {
+private struct WorkSegmentSelectionSurface: View {
     let tint: Color
     let cornerRadius: CGFloat
+    let surfaceStyle: WorkSegmentedPickerSurfaceStyle
 
+    @ViewBuilder
     var body: some View {
         let shape = RoundedRectangle(
             cornerRadius: cornerRadius,
             style: .continuous
         )
 
+        if surfaceStyle == .glass {
+            if #available(macOS 26.0, *) {
+                shape
+                    .fill(Color.clear)
+                    .glassEffect(
+                        Glass.regular
+                            .tint(
+                                tint.opacity(
+                                    WorkControlGlassStyle.selectionTintOpacity
+                                )
+                            )
+                            .interactive(),
+                        in: shape
+                    )
+                    .shadow(
+                        color: .black.opacity(
+                            WorkControlGlassStyle.selectionShadowOpacity
+                        ),
+                        radius: 2,
+                        y: 1
+                    )
+            } else {
+                classicSurface(shape: shape)
+            }
+        } else {
+            classicSurface(shape: shape)
+        }
+    }
+
+    private func classicSurface(
+        shape: RoundedRectangle
+    ) -> some View {
         shape
             .fill(Color(nsColor: .controlBackgroundColor).opacity(0.96))
             .overlay {
@@ -297,12 +345,32 @@ private struct NotchIntroductionBanner: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(.regularMaterial, in: Capsule())
-        .overlay {
-            Capsule()
-                .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-        }
+        .modifier(NotchIntroductionBannerSurface())
         .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
+    }
+}
+
+private struct NotchIntroductionBannerSurface: ViewModifier {
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        let shape = Capsule()
+
+        if #available(macOS 26.0, *) {
+            content.glassEffect(
+                Glass.regular.tint(
+                    Color.indigo.opacity(
+                        WorkControlGlassStyle.bannerTintOpacity
+                    )
+                ),
+                in: shape
+            )
+        } else {
+            content
+                .background(.regularMaterial, in: shape)
+                .overlay {
+                    shape.stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                }
+        }
     }
 }
 
@@ -442,15 +510,47 @@ struct CardBackground: ViewModifier {
 }
 
 private struct WorkSecondaryButtonStyleModifier: ViewModifier {
-    @ViewBuilder
     func body(content: Content) -> some View {
         content.buttonStyle(.bordered)
     }
 }
 
-private struct WorkProminentButtonStyleModifier: ViewModifier {
+private struct WorkGlassSecondaryButtonStyleModifier: ViewModifier {
+    @ViewBuilder
     func body(content: Content) -> some View {
-        content.buttonStyle(.borderedProminent)
+        if #available(macOS 26.0, *) {
+            content.buttonStyle(.glass)
+        } else {
+            content.buttonStyle(.bordered)
+        }
+    }
+}
+
+private struct WorkProminentButtonStyleModifier: ViewModifier {
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content.buttonStyle(.glassProminent)
+        } else {
+            content.buttonStyle(.borderedProminent)
+        }
+    }
+}
+
+private struct WorkInteractiveGlassSurface<S: Shape>: ViewModifier {
+    let shape: S
+    let tint: Color?
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content.glassEffect(
+                Glass.regular.tint(tint).interactive(),
+                in: shape
+            )
+        } else {
+            content
+        }
     }
 }
 
@@ -621,8 +721,19 @@ extension View {
         modifier(WorkSecondaryButtonStyleModifier())
     }
 
+    func workGlassSecondaryButtonStyle() -> some View {
+        modifier(WorkGlassSecondaryButtonStyleModifier())
+    }
+
     func workProminentButtonStyle() -> some View {
         modifier(WorkProminentButtonStyleModifier())
+    }
+
+    func workInteractiveGlass<S: Shape>(
+        in shape: S,
+        tint: Color? = nil
+    ) -> some View {
+        modifier(WorkInteractiveGlassSurface(shape: shape, tint: tint))
     }
 
     func hoverHelp(

@@ -211,6 +211,21 @@ final class DashboardLayoutTests: XCTestCase {
         XCTAssertGreaterThan(WorkSegmentedPickerStyle.selectedStrokeOpacity, 0)
     }
 
+    func testSelectiveGlassControlsKeepRestrainedTintAndExistingGeometry() {
+        XCTAssertNotEqual(
+            WorkSegmentedPickerSurfaceStyle.classic,
+            WorkSegmentedPickerSurfaceStyle.glass
+        )
+        XCTAssertGreaterThan(WorkControlGlassStyle.selectionTintOpacity, 0.2)
+        XCTAssertLessThan(WorkControlGlassStyle.selectionTintOpacity, 0.5)
+        XCTAssertLessThan(WorkControlGlassStyle.bannerTintOpacity, 0.2)
+        XCTAssertEqual(
+            WorkControlGlassStyle.navigationButtonDiameter * 2
+                + DashboardAnalyticsLayout.navigationButtonSpacing,
+            DashboardAnalyticsLayout.navigationWidth
+        )
+    }
+
     func testHistoryEditorKeepsDurationBesideTimestampWithAVisibleGroupGap() {
         XCTAssertGreaterThan(
             SessionInputLayout.groupSpacing,
